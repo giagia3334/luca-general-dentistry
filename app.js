@@ -754,10 +754,12 @@
 
   /* ---- "Open now" on the map: office hours in Utah time (Mon-Thu 8am-5pm, Fri 8am-2pm) ---- */
   function initOpenNow() {
-    const el = $("#mnow");
-    if (!el || !window.Intl) return;
+    const el = $("#mnow"),
+      txt = $("#mnow-t");
+    if (!el || !txt || !window.Intl) return;
     const check = () => {
-      let open = false;
+      let open = false,
+        label = "";
       try {
         const parts = new Intl.DateTimeFormat("en-US", {
           timeZone: "America/Denver",
@@ -771,8 +773,12 @@
           mins = (+get("hour") % 24) * 60 + +get("minute"),
           close = { Mon: 1020, Tue: 1020, Wed: 1020, Thu: 1020, Fri: 840 }[day];
         open = !!close && mins >= 480 && mins < close;
+        label = open ? "Open now" : "Closed now"; // short on purpose: the hours sit right under the map
       } catch (e) {}
-      el.hidden = !open;
+      if (!label) return void (el.hidden = true);
+      txt.textContent = label;
+      el.classList.toggle("closed", !open);
+      el.hidden = false;
     };
     check();
     setInterval(check, 60000);
