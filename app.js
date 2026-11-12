@@ -1,0 +1,900 @@
+(function () {
+  /* ---- config: the only values to touch when the page goes live ---- */
+  const CONFIG = {
+    FORM_ENDPOINT: "", // empty = draft: nothing is sent, the card says so and offers the phone number
+    FORM_CONTENT_TYPE: "application/json", // use "text/plain" if the endpoint does not answer a CORS preflight (same JSON body)
+    FORM_TIMEOUT_MS: 12000,
+    DRAFT: true, // labels every dataLayer event and payload as a test; set to false at launch
+    SOURCE: "Google Ads - General Dentistry",
+    PHONE_TEL: "+13854122543",
+    PHONE_TEXT: "(385) 412-2543",
+  };
+  const root = document.documentElement,
+    $ = (s) => document.querySelector(s),
+    $$ = (s) => [...document.querySelectorAll(s)];
+  const reduce = !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
+  const hasIO = "IntersectionObserver" in window;
+  let motion = !reduce;
+  const onMotion = []; // features that react to the Motion switch
+
+  /* every feature runs on its own: one failure can never stop the rest of the page */
+  function safe(name, fn) {
+    try {
+      fn();
+    } catch (e) {
+      if (window.console) console.error("[luca] " + name, e);
+    }
+  }
+
+  /* ---- analytics: harmless without GTM (it only fills an array). Never put name or phone in here. ---- */
+  function track(event, data) {
+    try {
+      const dl = (window.dataLayer = window.dataLayer || []);
+      dl.push(Object.assign({ event: event, lp_source: CONFIG.SOURCE, lp_draft: CONFIG.DRAFT }, data || {}));
+    } catch (e) {}
+  }
+
+  /* ---- attribution: read once from the URL, keep for the tab session ---- */
+  const ATTR_KEYS = [
+    "gclid",
+    "gbraid",
+    "wbraid",
+    "utm_source",
+    "utm_medium",
+    "utm_campaign",
+    "utm_term",
+    "utm_content",
+  ];
+  function getAttribution() {
+    let saved = {},
+      fresh = {},
+      found = false;
+    try {
+      saved = JSON.parse(sessionStorage.getItem("luca_lp_attr") || "{}") || {};
+    } catch (e) {}
+    if (!saved || typeof saved !== "object" || Array.isArray(saved)) saved = {};
+    try {
+      const q = new URLSearchParams(location.search);
+      ATTR_KEYS.forEach((k) => {
+        const v = (q.get(k) || "").trim().slice(0, 256);
+        if (v) {
+          fresh[k] = v;
+          found = true;
+        }
+      });
+    } catch (e) {}
+    const a = found ? fresh : saved; // a new ad click replaces the stored set as a whole, so ids never mix
+    if (!a.landing_page) {
+      try {
+        a.landing_page = String(location.pathname || "/").slice(0, 256);
+      } catch (e) {
+        a.landing_page = "";
+      }
+    }
+    try {
+      sessionStorage.setItem("luca_lp_attr", JSON.stringify(a));
+    } catch (e) {}
+    return a;
+  }
+
+  /* ---- reveal on scroll ---- */
+  let io = null;
+  function arm() {
+    if (!hasIO) {
+      $$(".rvs,.hero").forEach((e) => e.classList.add("on"));
+      return;
+    }
+    if (!io)
+      io = new IntersectionObserver(
+        (es) =>
+          es.forEach((e) => {
+            if (e.isIntersecting) {
+              e.target.classList.add("on");
+              io.unobserve(e.target);
+            }
+          }),
+        { threshold: 0.18, rootMargin: "0px 0px -6% 0px" },
+      );
+    $$(".rvs").forEach((el) => {
+      if (el.getBoundingClientRect().bottom < 0)
+        el.classList.add("on"); // already scrolled past (reload, deep link)
+      else io.observe(el);
+    });
+  }
+
+  /* ---- hero: entrance, rotating city, spotlight ---- */
+  const cities = ["Bountiful", "Woods Cross", "North Salt Lake", "Centerville"];
+  let ci = 0,
+    cityT = null,
+    heroSeen = true;
+  function playHero() {
+    const h = $(".hero");
+    h.classList.remove("on");
+    void h.offsetWidth;
+    setTimeout(() => h.classList.add("on"), 40);
+  }
+  function initHero() {
+    /* the ad can name the town: ?city=north-salt-lake, or the keyword in utm_term / kw. Whitelist only. */
+    try {
+      const q = new URLSearchParams(location.search);
+      const raw =
+        " " +
+        [q.get("city"), q.get("kw"), q.get("utm_term")]
+          .join(" ")
+          .toLowerCase()
+          .replace(/[^a-z]+/g, " ") +
+        " ";
+      if (raw.indexOf(" west bountiful ") < 0) {
+        const hit = ["North Salt Lake", "Woods Cross", "Centerville", "Bountiful"].find(
+          (c) => raw.indexOf(" " + c.toLowerCase() + " ") >= 0,
+        );
+        if (hit) {
+          ci = cities.indexOf(hit);
+          $(".hero .cw").textContent = hit;
+        }
+      }
+    } catch (e) {}
+    if (hasIO) new IntersectionObserver((es) => (heroSeen = es[es.length - 1].isIntersecting)).observe($(".hero"));
+    const h = $(".h2x");
+    let raf = 0;
+    h.addEventListener("pointermove", (e) => {
+      if (e.pointerType !== "mouse" || !motion || raf) return; // phones keep the designed spotlight
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const r = h.getBoundingClientRect();
+        h.style.setProperty("--mx", ((e.clientX - r.left) / r.width) * 100 + "%");
+        h.style.setProperty("--my", ((e.clientY - r.top) / r.height) * 100 + "%");
+      });
+    });
+  }
+  function nextCity() {
+    if (!motion || !heroSeen || document.hidden) return;
+    const line = $(".hero .cl"); // word, underline and full stop fade together, so nothing jumps while visible
+    ci = (ci + 1) % cities.length;
+    line.classList.add("sw");
+    setTimeout(() => {
+      line.querySelector(".cw").textContent = cities[ci];
+      line.classList.remove("sw");
+    }, 260);
+  }
+
+  /* ---- proof strip count-up ---- */
+  function initCounters() {
+    if (!hasIO) return;
+    new IntersectionObserver(
+      (es, o) =>
+        es.forEach((e) => {
+          if (!e.isIntersecting) return;
+          o.disconnect();
+          if (!motion) return;
+          $$("[data-count]").forEach((el) => {
+            const to = +el.dataset.count,
+              dec = +(el.dataset.dec || 0),
+              t0 = performance.now();
+            (function f(t) {
+              const p = Math.min(1, (t - t0) / 700);
+              el.textContent = (to * (1 - Math.pow(1 - p, 4))).toFixed(dec);
+              if (p < 1) requestAnimationFrame(f);
+            })(t0);
+          });
+        }),
+      { threshold: 0.6 },
+    ).observe($("#strip"));
+  }
+
+  /* ---- film: loops while seen; "Watch the story" plays the longer film in place, with sound ---- */
+  function initFilm() {
+    const fv = $("#filmVid"),
+      btn = $("#playStory2"),
+      lite = !!(navigator.connection && navigator.connection.saveData);
+    let story = false,
+      seen = false;
+    const loop = () => {
+      if (story) return;
+      if (seen && motion && !lite) {
+        fv.muted = true;
+        fv.play().catch(() => {});
+      } else fv.pause();
+    };
+    if (hasIO)
+      new IntersectionObserver(
+        (es) =>
+          es.forEach((e) => {
+            seen = e.isIntersecting;
+            if (story && !seen) fv.pause();
+            loop();
+          }),
+        { threshold: 0.2 },
+      ).observe(fv);
+    onMotion.push(loop);
+    function endStory() {
+      if (!story) return;
+      story = false;
+      fv.controls = false;
+      fv.src = "media/luca-film.mp4";
+      fv.loop = true;
+      fv.muted = true;
+      btn.hidden = false;
+      loop();
+    }
+    btn.addEventListener("click", () => {
+      story = true;
+      fv.pause();
+      fv.loop = false;
+      fv.src = "media/luca-story.mp4";
+      fv.muted = false;
+      fv.controls = true;
+      btn.hidden = true;
+      fv.play().catch(() => {});
+      fv.scrollIntoView({ block: "center", behavior: motion ? "smooth" : "auto" });
+      track("story_play");
+    });
+    fv.addEventListener("ended", () => story && endStory());
+    fv.addEventListener("error", () => story && endStory());
+  }
+
+  /* ---- gallery: centre photo sharp, neighbours dimmed, swipe or mouse drag ---- */
+  let gGo = () => {},
+    gc = 1;
+  function initGallery() {
+    const gal = $("#gal"),
+      gi = [...gal.children];
+    if (hasIO) {
+      const gio = new IntersectionObserver(
+        (es) =>
+          es.forEach((e) => {
+            if (e.isIntersecting) {
+              gc = gi.indexOf(e.target);
+              gi.forEach((b, i) => b.classList.toggle("c", i === gc));
+            }
+          }),
+        { root: gal, rootMargin: "0px -49.5% 0px -49.5%", threshold: 0 },
+      );
+      gi.forEach((b) => gio.observe(b));
+      /* lazy images inside a sideways scroller load only when they enter it: load all of them once the gallery is near */
+      new IntersectionObserver(
+        (es, o) => {
+          if (!es.some((e) => e.isIntersecting)) return;
+          o.disconnect();
+          gal.querySelectorAll("img").forEach((im) => (im.loading = "eager"));
+        },
+        { rootMargin: "100% 0px" },
+      ).observe(gal);
+    }
+    gGo = (i, smooth) => {
+      const b = gi[Math.max(0, Math.min(gi.length - 1, i))];
+      gal.scrollTo({
+        left: b.offsetLeft - (gal.clientWidth - b.offsetWidth) / 2,
+        behavior: smooth ? "smooth" : "auto",
+      });
+    };
+    dragScroll(gal, gi, (i) => gGo(i, true));
+    gal.addEventListener("click", (e) => {
+      if (gal.dataset.moved) return;
+      const b = e.target.closest("button");
+      if (b && !b.classList.contains("c")) gGo(gi.indexOf(b), true);
+    });
+    gal.addEventListener("dragstart", (e) => e.preventDefault());
+    gGo(1, false);
+  }
+
+  /* mouse drag for a sideways scroller (touch already scrolls natively); settles on the nearest item */
+  function dragScroll(box, items, settle) {
+    let down = false,
+      moved = false,
+      x0 = 0,
+      s0 = 0,
+      t = 0;
+    const done = () => {
+      clearTimeout(t);
+      if (!down) box.classList.remove("drag");
+    };
+    function end() {
+      if (!down) return;
+      down = false;
+      if (!moved) return done();
+      const mid = box.scrollLeft + box.clientWidth / 2;
+      let best = 0,
+        bd = 1e9;
+      items.forEach((b, i) => {
+        const d = Math.abs(b.offsetLeft + b.offsetWidth / 2 - mid);
+        if (d < bd) {
+          bd = d;
+          best = i;
+        }
+      });
+      settle(best);
+      clearTimeout(t);
+      t = setTimeout(done, 600); // snapping comes back only after the glide
+      setTimeout(() => delete box.dataset.moved, 0);
+    }
+    box.addEventListener("pointerdown", (e) => {
+      if (e.pointerType !== "mouse" || e.button !== 0) return;
+      down = true;
+      moved = false;
+      x0 = e.clientX;
+      s0 = box.scrollLeft;
+    });
+    addEventListener("pointermove", (e) => {
+      if (!down) return;
+      if (!(e.buttons & 1)) return end();
+      const d = e.clientX - x0;
+      if (!moved && Math.abs(d) < 6) return;
+      moved = true;
+      box.dataset.moved = "1";
+      box.classList.add("drag");
+      box.scrollLeft = s0 - d;
+    });
+    addEventListener("pointerup", end);
+    addEventListener("pointercancel", end);
+    box.addEventListener("scrollend", done);
+  }
+
+  /* ---- reviews: one card per swipe, dots, one small nudge that gives way to the visitor ---- */
+  function initReviews() {
+    const rv = $("#rv"),
+      rcs = [...rv.children],
+      dots = $("#dots");
+    dots.innerHTML = rcs.map(() => "<i></i>").join("");
+    const dl = [...dots.children];
+    const setDot = () => {
+      const max = rv.scrollWidth - rv.clientWidth,
+        i = max > 0 ? Math.round((rv.scrollLeft / max) * (rcs.length - 1)) : 0;
+      dl.forEach((d, k) => d.classList.toggle("on", k === i));
+    };
+    setDot();
+    rv.addEventListener("scroll", setDot, { passive: true });
+    dragScroll(rv, rcs, (i) => {
+      const c = rcs[i];
+      rv.scrollTo({ left: c.offsetLeft - (rv.clientWidth - c.offsetWidth) / 2, behavior: "smooth" });
+    });
+    let run = false,
+      raf = 0;
+    const stop = () => {
+      if (!run) return;
+      run = false;
+      cancelAnimationFrame(raf);
+      rv.style.scrollSnapType = "";
+    };
+    ["pointerdown", "touchstart"].forEach((t) => rv.addEventListener(t, stop, { passive: true }));
+    rv.addEventListener("wheel", (e) => Math.abs(e.deltaX) > Math.abs(e.deltaY) && stop(), { passive: true });
+    if (!hasIO) return;
+    new IntersectionObserver(
+      (es, o) =>
+        es.forEach((e) => {
+          if (!e.isIntersecting) return;
+          o.disconnect();
+          if (!motion || rv.scrollLeft > 2) return;
+          run = true;
+          rv.style.scrollSnapType = "none";
+          const t0 = performance.now();
+          (function f(t) {
+            if (!run) return;
+            const p = Math.min(1, (t - t0) / 700);
+            rv.scrollLeft = Math.sin(p * Math.PI) * 70;
+            if (p < 1) raf = requestAnimationFrame(f);
+            else {
+              run = false;
+              rv.scrollLeft = 0;
+              rv.style.scrollSnapType = "";
+            }
+          })(t0);
+        }),
+      { threshold: 0.7 },
+    ).observe(rv);
+  }
+
+  /* ---- Instagram: one frame where the numbers and the button form out of dots as you scroll.
+     The numbers live in the HTML; without JS, with motion off or on any failure the section shows them as text. ---- */
+  let buildPSafe = () => {},
+    drawInsta = () => {};
+  function initInsta() {
+    const insta = $("#insta"),
+      cv = $("#pc"),
+      ctx = cv.getContext("2d"),
+      plab = $("#plab"),
+      ibtn = $("#ibtn");
+    if (!ctx) return;
+    const STATS = [...plab.querySelectorAll("b")].map((b) => b.textContent.trim());
+    let SETS = [],
+      PW = 0,
+      PH = 0,
+      dpr = 1,
+      seed = 7;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646; // same layout on every rebuild
+    function sample(draw, step) {
+      const off = document.createElement("canvas");
+      off.width = PW;
+      off.height = PH;
+      const o = off.getContext("2d");
+      o.textAlign = "center";
+      o.textBaseline = "middle";
+      draw(o);
+      const d = o.getImageData(0, 0, PW, PH).data,
+        out = [];
+      for (let y = 0; y < PH; y += step)
+        for (let x = 0; x < PW; x += step) {
+          const k = (y * PW + x) * 4;
+          if (d[k + 3] > 128) {
+            const a = rnd() * Math.PI * 2,
+              r = Math.max(PW, PH) * (0.5 + rnd() * 0.6);
+            out.push({
+              tx: x,
+              ty: y,
+              sx: PW / 2 + Math.cos(a) * r,
+              sy: PH / 2 + Math.sin(a) * r,
+              ex: x + (rnd() - 0.5) * PW * 0.9,
+              ey: y - PH * (0.3 + rnd() * 0.9),
+              d: rnd() * 0.35,
+              c: d[k] < 120 ? "#141417" : d[k + 1] > 170 ? "#fff" : "#fb0199",
+              s: step - 0.6,
+            });
+          }
+        }
+      return out;
+    }
+    function buildP() {
+      seed = 7;
+      dpr = Math.min(2, devicePixelRatio || 1);
+      PW = cv.clientWidth;
+      PH = cv.clientHeight;
+      if (!PW || !PH) {
+        SETS = [];
+        return;
+      }
+      cv.width = PW * dpr;
+      cv.height = PH * dpr;
+      const col = PW < 700,
+        step = 3,
+        F = " Urbanist, Arial, sans-serif";
+      const fs = col ? Math.min(PW * 0.25, PH * 0.115) : Math.min(PW * 0.11, PH * 0.26);
+      const pos = col
+        ? [
+            [PW / 2, PH * 0.24],
+            [PW / 2, PH * 0.41],
+            [PW / 2, PH * 0.58],
+          ]
+        : [
+            [PW * 0.17, PH * 0.42],
+            [PW * 0.5, PH * 0.42],
+            [PW * 0.83, PH * 0.42],
+          ];
+      const bp = col ? [PW / 2, PH * 0.77] : [PW / 2, PH * 0.74];
+      ibtn.style.left = bp[0] + "px";
+      ibtn.style.top = bp[1] + "px";
+      const r = ibtn.getBoundingClientRect(),
+        c = cv.getBoundingClientRect(),
+        bx = r.left - c.left,
+        by = r.top - c.top,
+        cs = getComputedStyle(ibtn);
+      const A = sample((o) => {
+        o.font = "900 " + fs + "px" + F;
+        STATS.forEach((t, i) => {
+          o.fillStyle = i === 1 ? "#fb0199" : "#141417";
+          o.fillText(t, pos[i][0], pos[i][1]);
+        });
+        o.fillStyle = "#fb0199";
+        const rad = r.height / 2;
+        o.beginPath();
+        o.moveTo(bx + rad, by);
+        o.arcTo(bx + r.width, by, bx + r.width, by + r.height, rad);
+        o.arcTo(bx + r.width, by + r.height, bx, by + r.height, rad);
+        o.arcTo(bx, by + r.height, bx, by, rad);
+        o.arcTo(bx, by, bx + r.width, by, rad);
+        o.fill();
+        o.fillStyle = "#fff";
+        o.font = "800 " + cs.fontSize + F;
+        try {
+          o.letterSpacing = cs.letterSpacing;
+        } catch (e) {}
+        o.fillText(ibtn.textContent.trim().toUpperCase(), bx + r.width / 2, by + r.height / 2 + 1);
+      }, step);
+      [...plab.children].forEach((el, i) => {
+        el.style.left = pos[i][0] + "px";
+        el.style.top = pos[i][1] + fs * 0.54 + "px";
+      });
+      SETS = A.length ? [{ P: A, in0: 0, in1: 0.36, out0: 0.76, out1: 1 }] : [];
+      drawP();
+    }
+    const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2),
+      cl = (v, a, b) => Math.min(1, Math.max(0, (v - a) / (b - a)));
+    function drawP() {
+      if (!SETS.length) return;
+      const r = insta.getBoundingClientRect(),
+        lead = innerHeight * 0.75,
+        span = r.height - innerHeight + lead;
+      const p = Math.min(1, Math.max(0, (lead - r.top) / span));
+      insta.style.setProperty("--lab", (cl(p, 0.28, 0.36) - cl(p, 0.74, 0.8)).toFixed(3));
+      const bo = cl(p, 0.33, 0.38) - cl(p, 0.74, 0.78);
+      insta.style.setProperty("--btn", bo.toFixed(3));
+      insta.classList.toggle("btnon", bo > 0.9);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, PW, PH);
+      for (const S of SETS) {
+        const a = cl(p, S.in0, S.in1),
+          b = cl(p, S.out0, S.out1);
+        if (a <= 0 || b >= 1) continue;
+        for (const q of S.P) {
+          const ta = ease(cl(a, q.d, 1)),
+            tb = ease(cl(b, q.d * 0.8, 1));
+          const x = q.sx + (q.tx - q.sx) * ta + (q.ex - q.tx) * tb,
+            y = q.sy + (q.ty - q.sy) * ta + (q.ey - q.ty) * tb;
+          const al = Math.min(1, ta * 1.4) * (1 - tb);
+          if (al <= 0.02) continue;
+          ctx.globalAlpha = al;
+          ctx.fillStyle = q.c;
+          ctx.fillRect(x, y, q.s, q.s);
+        }
+      }
+      ctx.globalAlpha = 1;
+    }
+    buildPSafe = () => {
+      if (!motion) return;
+      insta.classList.remove("static");
+      try {
+        buildP();
+      } catch (e) {
+        SETS = [];
+      }
+      if (!SETS.length) insta.classList.add("static");
+    };
+    drawInsta = () => {
+      if (!motion || !SETS.length) return;
+      const r = insta.getBoundingClientRect();
+      if (r.top < innerHeight * 1.2 && r.bottom > 0) drawP();
+    };
+    let lastW = innerWidth,
+      lastH = innerHeight,
+      rz = 0;
+    addEventListener("resize", () => {
+      clearTimeout(rz);
+      rz = setTimeout(() => {
+        const wChanged = innerWidth !== lastW,
+          bigH = Math.abs(innerHeight - lastH) > 150; // ignore the phone address bar showing or hiding
+        if (!wChanged && !bigH) return;
+        lastW = innerWidth;
+        lastH = innerHeight;
+        buildPSafe();
+        gGo(gc, false);
+      }, 200);
+    });
+    onMotion.push(() => {
+      if (!motion) {
+        insta.classList.add("static");
+        return;
+      }
+      const fr = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
+      let fontsIn = false;
+      fr.then(() => (fontsIn = true));
+      Promise.race([fr, new Promise((r) => setTimeout(r, 1500))]).then(() =>
+        setTimeout(() => {
+          buildPSafe();
+          if (!fontsIn) fr.then(buildPSafe);
+        }, 60),
+      );
+    });
+  }
+
+  /* ---- scroll loop ---- */
+  function initScroll() {
+    let tick = false;
+    addEventListener(
+      "scroll",
+      () => {
+        if (tick) return;
+        tick = true;
+        requestAnimationFrame(() => {
+          tick = false;
+          drawInsta();
+        });
+      },
+      { passive: true },
+    );
+  }
+
+  /* ---- privacy policy popup ---- */
+  function initPrivacy() {
+    const pp = $("#pp");
+    const open = (e) => {
+      e.preventDefault();
+      if (pp.showModal) pp.showModal();
+      else pp.setAttribute("open", "");
+      track("privacy_open");
+    };
+    $$("#ppOpen,[data-pp]").forEach((b) => b.addEventListener("click", open));
+    $("#ppClose").addEventListener("click", () => (pp.close ? pp.close() : pp.removeAttribute("open")));
+    pp.addEventListener("click", (e) => {
+      if (e.target === pp) pp.close();
+    });
+  }
+
+  /* ---- lead form ---- */
+  function normPhone(raw) {
+    let d = String(raw || "").replace(/\D/g, "");
+    if (d.length === 11 && d[0] === "1") d = d.slice(1);
+    if (!/^[2-9]\d{2}[2-9]\d{6}$/.test(d) || /^(\d)\1{9}$/.test(d)) return null;
+    return { e164: "+1" + d, pretty: "(" + d.slice(0, 3) + ") " + d.slice(3, 6) + "-" + d.slice(6) };
+  }
+  function checkName(raw) {
+    const v = String(raw || "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (v.length < 2 || v.length > 80) return null;
+    if (!/\p{L}/u.test(v) || /\d{3,}|https?:|www\.|@/i.test(v)) return null;
+    return v;
+  }
+  function initLead() {
+    const form = $("#lead");
+    const f = {
+      name: $("#f-name"),
+      phone: $("#f-phone"),
+      hp: $("#f-hp"),
+      btn: $("#lead-send"),
+      msg: $("#lead-msg"),
+      done: $("#lead-done"),
+    };
+    const ERR = { name: "Please enter your name.", phone: "Please enter a 10-digit phone number, area code first." };
+    const t0 = Date.now(),
+      btnText = f.btn.textContent;
+    let busy = false,
+      started = false;
+    const attr = getAttribution();
+    ATTR_KEYS.concat(["landing_page", "source"]).forEach((k) => {
+      const i = document.createElement("input");
+      i.type = "hidden";
+      i.name = k;
+      i.value = k === "source" ? CONFIG.SOURCE : attr[k] || "";
+      form.appendChild(i);
+    });
+    const service = () => {
+      const r = form.querySelector('input[name="service"]:checked');
+      return r ? r.value : "Not specified";
+    };
+    function setErr(key, text) {
+      const input = f[key],
+        p = $("#f-" + key + "-err");
+      input.setAttribute("aria-invalid", text ? "true" : "false");
+      input.parentElement.classList.toggle("bad", !!text);
+      p.textContent = text || "";
+      p.hidden = !text;
+    }
+    function validate() {
+      const name = checkName(f.name.value),
+        phone = normPhone(f.phone.value),
+        bad = [];
+      setErr("name", name ? "" : ERR.name);
+      setErr("phone", phone ? "" : ERR.phone);
+      if (!name) bad.push("name");
+      if (!phone) bad.push("phone");
+      return { ok: !bad.length, bad: bad, name: name, phone: phone };
+    }
+    function say(kind) {
+      const m = f.msg;
+      m.textContent = "";
+      m.hidden = !kind;
+      m.classList.toggle("bad", kind === "fail");
+      if (!kind) return;
+      const a = document.createElement("a");
+      a.className = "tel";
+      a.href = "tel:" + CONFIG.PHONE_TEL;
+      a.dataset.call = "form_" + kind;
+      a.textContent = CONFIG.PHONE_TEXT;
+      m.append(
+        kind === "draft"
+          ? "This draft form is not connected yet, so nothing was sent. Please call "
+          : "We could not send your request. Please try again or call ",
+        a,
+        ".",
+      );
+      m.scrollIntoView({ block: "nearest", behavior: motion ? "smooth" : "auto" });
+    }
+    function setBusy(on) {
+      busy = on;
+      f.btn.disabled = on;
+      f.btn.setAttribute("aria-busy", on ? "true" : "false");
+      f.btn.textContent = on ? "Sending…" : btnText;
+      f.name.readOnly = f.phone.readOnly = on;
+    }
+    function showDone(v) {
+      [...form.children].forEach((el) => {
+        if (el !== f.done) el.hidden = true;
+      });
+      f.done.querySelector("[data-fn]").textContent = v.name.split(" ")[0];
+      f.done.querySelector("[data-ph]").textContent = v.phone.pretty;
+      f.done.hidden = false;
+      f.done.focus({ preventScroll: true });
+      f.done.scrollIntoView({ block: "nearest" });
+    }
+    function send() {
+      if (busy) return;
+      say("");
+      const v = validate();
+      if (!v.ok) {
+        form.dataset.state = "invalid";
+        f[v.bad[0]].focus();
+        track("form_error", { error_type: "validation", error_fields: v.bad.join(",") });
+        return;
+      }
+      f.phone.value = v.phone.pretty;
+      const svc = service();
+      if (f.hp.value || Date.now() - t0 < 1500) {
+        form.dataset.state = "error";
+        say("fail");
+        track("form_error", { error_type: "spam_check" });
+        return;
+      }
+      if (!CONFIG.FORM_ENDPOINT) {
+        form.dataset.state = "draft";
+        say("draft");
+        track("form_draft_submit", { service: svc });
+        return;
+      }
+      const payload = { name: v.name, phone: v.phone.e164, phone_display: v.phone.pretty, service: svc };
+      form.querySelectorAll('input[type="hidden"]').forEach((i) => (payload[i.name] = i.value));
+      payload.submitted_at = new Date().toISOString();
+      payload.seconds_on_page = Math.round((Date.now() - t0) / 1000);
+      payload.test = CONFIG.DRAFT;
+      form.dataset.state = "sending";
+      setBusy(true);
+      const ctl = "AbortController" in window ? new AbortController() : null,
+        timer = setTimeout(() => ctl && ctl.abort(), CONFIG.FORM_TIMEOUT_MS);
+      fetch(CONFIG.FORM_ENDPOINT, {
+        method: "POST",
+        mode: "cors",
+        credentials: "omit",
+        headers: { "Content-Type": CONFIG.FORM_CONTENT_TYPE },
+        body: JSON.stringify(payload),
+        signal: ctl ? ctl.signal : undefined,
+      })
+        .then((res) => {
+          if (!res.ok) throw new Error("http_" + res.status);
+        })
+        .then(
+          () => {
+            clearTimeout(timer);
+            busy = false;
+            form.dataset.state = "done";
+            track("form_submit", { service: svc });
+            showDone(v);
+          },
+          (err) => {
+            clearTimeout(timer);
+            setBusy(false);
+            form.dataset.state = "error";
+            say("fail");
+            const m = (err && err.message) || "";
+            track("form_error", {
+              error_type: err && err.name === "AbortError" ? "timeout" : m.indexOf("http_") === 0 ? m : "network",
+            });
+          },
+        );
+    }
+    f.btn.addEventListener("click", send);
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      send();
+    });
+    form.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" || e.isComposing || (e.target !== f.name && e.target !== f.phone)) return;
+      e.preventDefault();
+      if (e.target === f.name && !f.phone.value.trim()) f.phone.focus();
+      else send();
+    });
+    const start = () => {
+      if (started) return;
+      started = true;
+      track("form_start", { form_id: "lead" });
+    };
+    form.addEventListener("focusin", start);
+    form.addEventListener("change", (e) => {
+      start();
+      if (e.target.name === "service") track("form_service_select", { service: e.target.value });
+    });
+    form.addEventListener("input", (e) => {
+      const k = e.target === f.name ? "name" : e.target === f.phone ? "phone" : "";
+      if (!k || e.target.getAttribute("aria-invalid") !== "true") return;
+      setErr(k, (k === "name" ? checkName(f.name.value) : normPhone(f.phone.value)) ? "" : ERR[k]);
+    });
+    f.phone.addEventListener("blur", () => {
+      const p = normPhone(f.phone.value);
+      if (p) f.phone.value = p.pretty;
+      else if (f.phone.value.trim()) setErr("phone", ERR.phone);
+    });
+  }
+
+  /* ---- clicks: call/CTA events, in-page links (also inside the srcdoc review frame), chips set from a button ---- */
+  function initClicks() {
+    document.addEventListener(
+      "click",
+      (e) => {
+        const t = e.target.closest ? e.target.closest('a[href^="tel:"],[data-ev]') : null;
+        if (!t) return;
+        if (t.matches('a[href^="tel:"]')) track("call_click", { location: t.dataset.call || "unlabelled" });
+        else track(t.dataset.ev, { location: t.dataset.loc || "" });
+      },
+      true,
+    );
+    document.addEventListener("click", (e) => {
+      const a = e.target.closest ? e.target.closest('a[href^="#"]') : null,
+        el = a && a.getAttribute("href").length > 1 && document.getElementById(a.getAttribute("href").slice(1));
+      if (!el || el.tagName === "DIALOG") return;
+      e.preventDefault();
+      const chip = a.dataset.chip && $('#lead input[name="service"][value="' + a.dataset.chip + '"]');
+      if (chip) {
+        chip.closest("label").hidden = false;
+        chip.checked = true;
+      }
+      const target = el.id === "form" ? $("#lead") || el : el;
+      target.scrollIntoView({ behavior: "auto", block: "start" });
+    });
+  }
+
+  /* ---- floating buttons: shown once the hero buttons have scrolled away (phones); the calendar steps aside at the form ---- */
+  function initFab() {
+    const fab = $(".fab");
+    fab.classList.add("js");
+    if (!hasIO) return fab.classList.add("on");
+    const hero = $(".hero .cta"),
+      lead = $("#lead");
+    let heroIn = true;
+    new IntersectionObserver(
+      (es) =>
+        es.forEach((e) => {
+          if (e.target === hero) {
+            heroIn = e.isIntersecting;
+            fab.classList.toggle("athero", heroIn);
+          } else fab.classList.toggle("atform", e.isIntersecting);
+          fab.classList.add("on");
+        }),
+      { threshold: 0.15 },
+    ).observe(hero);
+    new IntersectionObserver((es) => es.forEach((e) => fab.classList.toggle("atform", e.isIntersecting)), {
+      threshold: 0.15,
+    }).observe(lead);
+  }
+
+  /* ---- motion switch (device setting, or the review shell's Motion button) ---- */
+  function setMotion(on) {
+    motion = on && !reduce;
+    try {
+      root.classList.toggle("m", motion);
+      if (motion) {
+        arm();
+        playHero();
+        if (!cityT) cityT = setInterval(nextCity, 2800);
+      } else {
+        clearInterval(cityT);
+        cityT = null;
+        $$(".rvs,.hero").forEach((e) => e.classList.add("on"));
+      }
+    } catch (e) {
+      root.classList.remove("m"); // never leave content hidden
+      if (window.console) console.error("[luca] motion", e);
+    }
+    onMotion.forEach((fn) => safe("motion hook", fn));
+  }
+
+  /* controlled from the review shell: motion only, and only from the parent frame */
+  addEventListener("message", (e) => {
+    const d = e.data;
+    if (!d || typeof d !== "object" || typeof d.motion !== "boolean") return;
+    if (window.parent === window || e.source !== window.parent) return;
+    setMotion(d.motion);
+  });
+
+  safe("clicks", initClicks);
+  safe("lead", initLead);
+  safe("privacy", initPrivacy);
+  safe("hero", initHero);
+  safe("counters", initCounters);
+  safe("film", initFilm);
+  safe("gallery", initGallery);
+  safe("reviews", initReviews);
+  safe("insta", initInsta);
+  safe("scroll", initScroll);
+  safe("fab", initFab);
+  setMotion(motion);
+  try {
+    parent.postMessage({ ready: true }, "*");
+  } catch (e) {}
+})();
