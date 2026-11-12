@@ -468,6 +468,7 @@
       cv = $("#pc"),
       ctx = cv.getContext("2d"),
       plab = $("#plab"),
+      prate = $("#prate"),
       ibtn = $("#ibtn");
     if (!ctx) return;
     const STATS = [...plab.querySelectorAll("b")].map((b) => b.textContent.trim());
@@ -571,8 +572,9 @@
       });
       /* five stars, in the part of the frame that stays visible above the rising reviews section */
       const R = col ? Math.min(PW * 0.064, 27) : Math.min(PW * 0.03, 44),
-        sy = PH * (col ? 0.335 : 0.31),
+        sy = PH * (col ? 0.3 : 0.235),
         gap = R * 2.55;
+      if (prate) prate.style.top = sy + R * 1.7 + "px"; // the rating line sits right under the stars
       const S = sample((o) => {
         o.fillStyle = GOLD;
         for (let i = 0; i < 5; i++) star(o, PW / 2 + (i - 2) * gap, sy, R);
@@ -632,6 +634,7 @@
       const bo = cl(p, 0.33, 0.38) - cl(p, 0.66, 0.7);
       insta.style.setProperty("--btn", bo.toFixed(3));
       insta.classList.toggle("btnon", bo > 0.9);
+      insta.style.setProperty("--rate", cl(p, 0.84, 0.95).toFixed(3)); // "4.9 from 479 Google reviews" arrives as the stars settle
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, PW, PH);
       const a = cl(p, 0, 0.36),

@@ -1844,3 +1844,37 @@ dialog.pp:target:not([open]) {
     font-size: clamp(38px, 4.6vw, 64px);
   }
 }
+/* ---------- the Google rating lives in the motion: stars, then the line under them ---------- */
+.insta .rate {
+  position: absolute;
+  left: 50%;
+  margin: 0;
+  transform: translate(-50%, calc((1 - var(--rate, 0)) * 14px));
+  opacity: var(--rate, 0);
+  font-weight: 800;
+  font-size: clamp(19px, 2.3vw, 30px);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  color: var(--ink);
+  pointer-events: none;
+}
+.insta .rate b {
+  color: var(--pk);
+  font-weight: 900;
+}
+.insta.static .rate {
+  display: none;
+}
+/* with the motion on, the reviews section starts straight with the cards (the heading stays for screen readers) */
+.insta:not(.static) + #reviews .head {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.insta:not(.static) + #reviews {
+  padding-top: clamp(26px, 4vw, 44px);
+}
