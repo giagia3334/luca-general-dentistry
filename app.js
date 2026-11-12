@@ -139,6 +139,33 @@
     clearTimeout(litT);
     litT = setTimeout(() => h.classList.add("lit"), 4600); // safety: the light always ends in its resting state
   }
+  /* draft only: three fonts for the line inside the light, to pick from on the real hero */
+  function initFontPick() {
+    const pick = $("#fontpick"),
+      h = $(".hero");
+    if (!pick || !CONFIG.DRAFT) return;
+    const set = (n) => {
+      h.dataset.lf = n;
+      [...pick.querySelectorAll("button")].forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.f === String(n))));
+    };
+    let n = "2";
+    try {
+      n = localStorage.getItem("luca_lf") || "2";
+    } catch (e) {}
+    set(n);
+    pick.hidden = false;
+    pick.addEventListener("click", (e) => {
+      const b = e.target.closest("button");
+      if (!b) return;
+      set(b.dataset.f);
+      try {
+        localStorage.setItem("luca_lf", b.dataset.f);
+      } catch (err) {}
+      h.style.removeProperty("--mx");
+      h.style.removeProperty("--my");
+      if (motion) playHero();
+    });
+  }
   function initHero() {
     /* the ad can name the town: ?city=north-salt-lake, or the keyword in utm_term / kw. Whitelist only. */
     let q = null;
@@ -746,11 +773,11 @@
     );
   }
 
-  /* ---- "Open now" on the map: office hours in Utah time (Mon-Thu 8am-5pm, Fri 8am-2pm) ---- */
+  /* ---- open / closed status above "Ready when you are.": office hours in Utah time (Mon-Thu 8am-5pm, Fri 8am-2pm) ---- */
   function initOpenNow() {
-    const el = $("#mnow"),
-      txt = $("#mnow-t");
-    if (!el || !txt || !window.Intl) return;
+    const f = $("#fnow"),
+      ft = $("#fnow-t");
+    if (!f || !ft || !window.Intl) return;
     const check = () => {
       let open = false,
         label = "";
@@ -767,20 +794,12 @@
           mins = (+get("hour") % 24) * 60 + +get("minute"),
           close = { Mon: 1020, Tue: 1020, Wed: 1020, Thu: 1020, Fri: 840 }[day];
         open = !!close && mins >= 480 && mins < close;
-        label = open ? "Open now" : "Closed now"; // short on purpose: the hours sit right under the map
+        label = open ? "Open now" : "Closed now · we call you back when we open";
       } catch (e) {}
-      if (!label) return void (el.hidden = true);
-      txt.textContent = label;
-      el.classList.toggle("closed", !open);
-      el.hidden = false;
-      /* the same status above "Ready when you are."; when closed it says what happens with a request */
-      const f = $("#fnow"),
-        ft = $("#fnow-t");
-      if (f && ft) {
-        ft.textContent = open ? "Open now" : "Closed now · we call you back when we open";
-        f.classList.toggle("closed", !open);
-        f.hidden = false;
-      }
+      if (!label) return void (f.hidden = true);
+      ft.textContent = label;
+      f.classList.toggle("closed", !open);
+      f.hidden = false;
     };
     check();
     setInterval(check, 60000);
@@ -1092,6 +1111,7 @@
   safe("privacy", initPrivacy);
   safe("open now", initOpenNow);
   safe("hero", initHero);
+  safe("fontpick", initFontPick);
   safe("counters", initCounters);
   safe("film", initFilm);
   safe("gallery", initGallery);
