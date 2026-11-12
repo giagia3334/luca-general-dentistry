@@ -26,6 +26,23 @@
     }
   }
 
+  /* scroll the page itself. scrollIntoView also scrolls any ancestor with overflow:hidden (the dark end section),
+     which pushed its heading out of sight on phones. */
+  function goTo(el, where) {
+    const r = el.getBoundingClientRect();
+    let y;
+    if (where === "center") y = r.top + scrollY - (innerHeight - r.height) / 2;
+    else if (where === "nearest") {
+      if (r.top >= 12 && r.bottom <= innerHeight - 12) return;
+      y = r.bottom > innerHeight - 12 ? r.bottom + scrollY - innerHeight + 24 : r.top + scrollY - 24;
+    } else y = r.top + scrollY - Math.max(16, Math.min(90, innerHeight * 0.08));
+    try {
+      scrollTo({ top: Math.max(0, y), behavior: where === "center" && motion ? "smooth" : "auto" });
+    } catch (e) {
+      scrollTo(0, Math.max(0, y));
+    }
+  }
+
   /* ---- analytics: harmless without GTM (it only fills an array). Never put name or phone in here. ---- */
   function track(event, data) {
     try {
@@ -102,21 +119,25 @@
     });
   }
 
-  /* ---- hero: entrance, rotating city, spotlight ---- */
+  /* ---- hero: light intro, rotating city, spotlight, photo options while in draft ---- */
   const cities = ["Bountiful", "Woods Cross", "North Salt Lake", "Centerville"];
   let ci = 0,
     cityT = null,
-    heroSeen = true;
+    heroSeen = true,
+    litT = 0;
   function playHero() {
     const h = $(".hero");
-    h.classList.remove("on");
+    h.classList.remove("on", "lit");
     void h.offsetWidth;
     setTimeout(() => h.classList.add("on"), 40);
+    clearTimeout(litT);
+    litT = setTimeout(() => h.classList.add("lit"), 4600); // safety: the light always ends in its resting state
   }
   function initHero() {
     /* the ad can name the town: ?city=north-salt-lake, or the keyword in utm_term / kw. Whitelist only. */
+    let q = null;
     try {
-      const q = new URLSearchParams(location.search);
+      q = new URLSearchParams(location.search);
       const raw =
         " " +
         [q.get("city"), q.get("kw"), q.get("utm_term")]
@@ -136,9 +157,13 @@
     } catch (e) {}
     if (hasIO) new IntersectionObserver((es) => (heroSeen = es[es.length - 1].isIntersecting)).observe($(".hero"));
     const h = $(".h2x");
+    /* the light travels once on its own (the phrase rides inside it), then rests; after that the mouse can move it */
+    h.addEventListener("animationend", (e) => {
+      if (e.animationName === "heroLight") h.classList.add("lit");
+    });
     let raf = 0;
     h.addEventListener("pointermove", (e) => {
-      if (e.pointerType !== "mouse" || !motion || raf) return; // phones keep the designed spotlight
+      if (e.pointerType !== "mouse" || !motion || raf || !h.classList.contains("lit")) return; // phones keep the designed light
       raf = requestAnimationFrame(() => {
         raf = 0;
         const r = h.getBoundingClientRect();
@@ -146,6 +171,49 @@
         h.style.setProperty("--my", ((e.clientY - r.top) / r.height) * 100 + "%");
       });
     });
+
+    /* hero photo options (draft only): ?hero=2, or the small 1 2 3 switch on the photo */
+    const pic = h.querySelector("picture"),
+      first = pic.innerHTML,
+      pick = $("#heropick");
+    const HEROES = {
+      1: ["img/hero-1-m.jpg", "img/hero-1.jpg"],
+      2: ["img/hero-2-m.jpg", "img/hero-2.jpg"],
+      3: ["img/hero-3-m.jpg", "img/hero-3.jpg"],
+    };
+    function setHero(n, replay) {
+      if (!HEROES[n]) return;
+      if (n === 1) pic.innerHTML = first;
+      else {
+        const small = window.matchMedia && matchMedia("(max-width: 600px)").matches;
+        pic.innerHTML = '<img class="ph" alt="" src="' + HEROES[n][small ? 0 : 1] + '" />';
+      }
+      h.dataset.hero = n;
+      if (pick)
+        [...pick.querySelectorAll("button")].forEach((b) => b.setAttribute("aria-pressed", String(+b.dataset.h === n)));
+      if (replay && motion) {
+        h.style.removeProperty("--mx");
+        h.style.removeProperty("--my");
+        playHero();
+      }
+    }
+    let want = 1;
+    try {
+      want = +(q && q.get("hero")) || +localStorage.getItem("luca_hero") || 1;
+    } catch (e) {}
+    if (pick && CONFIG.DRAFT) {
+      pick.hidden = false;
+      pick.addEventListener("click", (e) => {
+        const b = e.target.closest("button");
+        if (!b) return;
+        setHero(+b.dataset.h, true);
+        try {
+          localStorage.setItem("luca_hero", b.dataset.h);
+        } catch (err) {}
+        track("hero_photo_pick", { option: b.dataset.h });
+      });
+    }
+    if (want !== 1) setHero(want, false);
   }
   function nextCity() {
     if (!motion || !heroSeen || document.hidden) return;
@@ -172,7 +240,7 @@
               dec = +(el.dataset.dec || 0),
               t0 = performance.now();
             (function f(t) {
-              const p = Math.min(1, (t - t0) / 700);
+              const p = Math.max(0, Math.min(1, (t - t0) / 700));
               el.textContent = (to * (1 - Math.pow(1 - p, 4))).toFixed(dec);
               if (p < 1) requestAnimationFrame(f);
             })(t0);
@@ -226,7 +294,7 @@
       fv.controls = true;
       btn.hidden = true;
       fv.play().catch(() => {});
-      fv.scrollIntoView({ block: "center", behavior: motion ? "smooth" : "auto" });
+      goTo(fv, "center");
       track("story_play");
     });
     fv.addEventListener("ended", () => story && endStory());
@@ -384,7 +452,8 @@
     ).observe(rv);
   }
 
-  /* ---- Instagram: one frame where the numbers and the button form out of dots as you scroll.
+  /* ---- Instagram: one frame where the numbers and the button form out of fine dots as you scroll, then the dots
+     gather into five gold stars that sit on top of the reviews section as it rises.
      The numbers live in the HTML; without JS, with motion off or on any failure the section shows them as text. ---- */
   let buildPSafe = () => {},
     drawInsta = () => {};
@@ -396,17 +465,21 @@
       ibtn = $("#ibtn");
     if (!ctx) return;
     const STATS = [...plab.querySelectorAll("b")].map((b) => b.textContent.trim());
-    let SETS = [],
+    const INK = "#141417",
+      PINK = "#fb0199",
+      GOLD = "#ffb800";
+    let P = [],
       PW = 0,
       PH = 0,
       dpr = 1,
+      dot = 1.5,
       seed = 7;
     const rnd = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646; // same layout on every rebuild
     function sample(draw, step) {
       const off = document.createElement("canvas");
       off.width = PW;
       off.height = PH;
-      const o = off.getContext("2d");
+      const o = off.getContext("2d", { willReadFrequently: true });
       o.textAlign = "center";
       o.textBaseline = "middle";
       draw(o);
@@ -415,38 +488,35 @@
       for (let y = 0; y < PH; y += step)
         for (let x = 0; x < PW; x += step) {
           const k = (y * PW + x) * 4;
-          if (d[k + 3] > 128) {
-            const a = rnd() * Math.PI * 2,
-              r = Math.max(PW, PH) * (0.5 + rnd() * 0.6);
-            out.push({
-              tx: x,
-              ty: y,
-              sx: PW / 2 + Math.cos(a) * r,
-              sy: PH / 2 + Math.sin(a) * r,
-              ex: x + (rnd() - 0.5) * PW * 0.9,
-              ey: y - PH * (0.3 + rnd() * 0.9),
-              d: rnd() * 0.35,
-              c: d[k] < 120 ? "#141417" : d[k + 1] > 170 ? "#fff" : "#fb0199",
-              s: step - 0.6,
-            });
-          }
+          if (d[k + 3] > 128) out.push({ x: x, y: y, c: d[k] < 120 ? INK : d[k + 1] > 170 ? "#fff" : PINK });
         }
       return out;
     }
+    function star(o, cx, cy, R) {
+      o.beginPath();
+      for (let i = 0; i < 10; i++) {
+        const a = -Math.PI / 2 + (i * Math.PI) / 5,
+          r = i % 2 ? R * 0.46 : R;
+        o[i ? "lineTo" : "moveTo"](cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+      }
+      o.closePath();
+      o.fill();
+    }
     function buildP() {
       seed = 7;
-      dpr = Math.min(2, devicePixelRatio || 1);
+      dpr = Math.min(3, devicePixelRatio || 1);
       PW = cv.clientWidth;
       PH = cv.clientHeight;
       if (!PW || !PH) {
-        SETS = [];
+        P = [];
         return;
       }
-      cv.width = PW * dpr;
-      cv.height = PH * dpr;
+      cv.width = Math.round(PW * dpr);
+      cv.height = Math.round(PH * dpr);
       const col = PW < 700,
-        step = 3,
+        step = col ? 2 : 3, // finer grid than before: about twice the dots on a phone
         F = " Urbanist, Arial, sans-serif";
+      dot = col ? 1.5 : 2.6;
       const fs = col ? Math.min(PW * 0.25, PH * 0.115) : Math.min(PW * 0.11, PH * 0.26);
       const pos = col
         ? [
@@ -470,10 +540,10 @@
       const A = sample((o) => {
         o.font = "900 " + fs + "px" + F;
         STATS.forEach((t, i) => {
-          o.fillStyle = i === 1 ? "#fb0199" : "#141417";
+          o.fillStyle = i === 1 ? PINK : INK;
           o.fillText(t, pos[i][0], pos[i][1]);
         });
-        o.fillStyle = "#fb0199";
+        o.fillStyle = PINK;
         const rad = r.height / 2;
         o.beginPath();
         o.moveTo(bx + rad, by);
@@ -493,38 +563,122 @@
         el.style.left = pos[i][0] + "px";
         el.style.top = pos[i][1] + fs * 0.54 + "px";
       });
-      SETS = A.length ? [{ P: A, in0: 0, in1: 0.36, out0: 0.76, out1: 1 }] : [];
+      /* five stars, in the part of the frame that stays visible above the rising reviews section */
+      const R = col ? Math.min(PW * 0.064, 27) : Math.min(PW * 0.03, 44),
+        sy = PH * (col ? 0.335 : 0.31),
+        gap = R * 2.55;
+      const S = sample((o) => {
+        o.fillStyle = GOLD;
+        for (let i = 0; i < 5; i++) star(o, PW / 2 + (i - 2) * gap, sy, R);
+      }, step).sort((a, b) => a.x - b.x || a.y - b.y);
+      const far = Math.max(PW, PH);
+      P = A.map((q) => {
+        const a = rnd() * Math.PI * 2,
+          rr = far * (0.5 + rnd() * 0.6),
+          sx = PW / 2 + Math.cos(a) * rr,
+          sy0 = PH / 2 + Math.sin(a) * rr,
+          dx = q.x - sx,
+          dy = q.y - sy0,
+          len = Math.hypot(dx, dy) || 1;
+        return {
+          tx: q.x,
+          ty: q.y,
+          sx: sx,
+          sy: sy0,
+          nx: -dy / len, // normal of the flight line: gives each dot a soft arc on the way in
+          ny: dx / len,
+          w: (rnd() - 0.5) * far * 0.22,
+          ex: q.x + (rnd() - 0.5) * PW * 0.9,
+          ey: q.y - PH * (0.3 + rnd() * 0.9),
+          /* the frame builds in reading order: top to bottom on phones, left to right on wide screens */
+          d: 0.2 * (col ? q.y / PH : q.x / PW) + rnd() * 0.16,
+          d2: rnd() * 0.3,
+          c: q.c,
+          g: 0,
+          gx: 0,
+          gy: 0,
+        };
+      });
+      /* an even share of the dots becomes the stars; ordered left to right so they glide instead of crossing */
+      if (S.length && P.length > S.length) {
+        const k = P.length / S.length,
+          chosen = [];
+        for (let i = 0; i < S.length; i++) chosen.push(P[Math.floor(i * k)]);
+        chosen.sort((a, b) => a.tx - b.tx || a.ty - b.ty);
+        chosen.forEach((q, i) => {
+          q.g = 1;
+          q.gx = S[i].x;
+          q.gy = S[i].y;
+        });
+      }
+      P.sort((a, b) => (a.c === "#fff") - (b.c === "#fff")); // white button letters are drawn last, on top of the pink
       drawP();
     }
     const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2),
       cl = (v, a, b) => Math.min(1, Math.max(0, (v - a) / (b - a)));
     function drawP() {
-      if (!SETS.length) return;
+      if (!P.length) return;
       const r = insta.getBoundingClientRect(),
         lead = innerHeight * 0.75,
         span = r.height - innerHeight + lead;
       const p = Math.min(1, Math.max(0, (lead - r.top) / span));
-      insta.style.setProperty("--lab", (cl(p, 0.28, 0.36) - cl(p, 0.74, 0.8)).toFixed(3));
-      const bo = cl(p, 0.33, 0.38) - cl(p, 0.74, 0.78);
+      insta.style.setProperty("--lab", (cl(p, 0.28, 0.36) - cl(p, 0.66, 0.72)).toFixed(3));
+      const bo = cl(p, 0.33, 0.38) - cl(p, 0.66, 0.7);
       insta.style.setProperty("--btn", bo.toFixed(3));
       insta.classList.toggle("btnon", bo > 0.9);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, PW, PH);
-      for (const S of SETS) {
-        const a = cl(p, S.in0, S.in1),
-          b = cl(p, S.out0, S.out1);
-        if (a <= 0 || b >= 1) continue;
-        for (const q of S.P) {
-          const ta = ease(cl(a, q.d, 1)),
-            tb = ease(cl(b, q.d * 0.8, 1));
-          const x = q.sx + (q.tx - q.sx) * ta + (q.ex - q.tx) * tb,
-            y = q.sy + (q.ty - q.sy) * ta + (q.ey - q.ty) * tb;
-          const al = Math.min(1, ta * 1.4) * (1 - tb);
-          if (al <= 0.02) continue;
-          ctx.globalAlpha = al;
-          ctx.fillStyle = q.c;
-          ctx.fillRect(x, y, q.s, q.s);
+      const a = cl(p, 0, 0.36),
+        b = cl(p, 0.68, 0.95);
+      if (a <= 0) return;
+      let lastC = "",
+        lastA = -1;
+      for (let i = 0; i < P.length; i++) {
+        const q = P[i],
+          ta = ease(cl(a, q.d, 1));
+        if (ta <= 0) continue;
+        let x,
+          y,
+          s = dot,
+          al = 1,
+          c = q.c;
+        if (b <= 0) {
+          if (ta < 1) {
+            const k = Math.sin(ta * Math.PI) * q.w;
+            x = q.sx + (q.tx - q.sx) * ta + q.nx * k;
+            y = q.sy + (q.ty - q.sy) * ta + q.ny * k;
+            s = dot * (1 + (1 - ta) * 1.6); // dots are larger while far away, like coming closer into focus
+            al = Math.min(1, ta * 1.5);
+            if (ta < 0.82 && c !== "#fff") c = PINK; // everything travels in brand pink and settles into its own colour
+          } else {
+            x = q.tx;
+            y = q.ty;
+          }
+        } else {
+          const tb = ease(cl(b, q.d2, 1));
+          if (q.g) {
+            const k = Math.sin(tb * Math.PI) * q.w * 0.35;
+            x = q.tx + (q.gx - q.tx) * tb + q.nx * k;
+            y = q.ty + (q.gy - q.ty) * tb + q.ny * k;
+            s = dot * (1 + Math.sin(tb * Math.PI) * 0.7);
+            if (tb > 0.35) c = GOLD;
+          } else {
+            x = q.tx + (q.ex - q.tx) * tb;
+            y = q.ty + (q.ey - q.ty) * tb;
+            al = 1 - tb;
+          }
         }
+        al = Math.round(al * 5) / 5;
+        if (al <= 0) continue;
+        if (al !== lastA) {
+          ctx.globalAlpha = al;
+          lastA = al;
+        }
+        if (c !== lastC) {
+          ctx.fillStyle = c;
+          lastC = c;
+        }
+        ctx.fillRect(x, y, s, s);
       }
       ctx.globalAlpha = 1;
     }
@@ -534,12 +688,12 @@
       try {
         buildP();
       } catch (e) {
-        SETS = [];
+        P = [];
       }
-      if (!SETS.length) insta.classList.add("static");
+      if (!P.length) insta.classList.add("static");
     };
     drawInsta = () => {
-      if (!motion || !SETS.length) return;
+      if (!motion || !P.length) return;
       const r = insta.getBoundingClientRect();
       if (r.top < innerHeight * 1.2 && r.bottom > 0) drawP();
     };
@@ -590,6 +744,32 @@
       },
       { passive: true },
     );
+  }
+
+  /* ---- "Open now" on the map: office hours in Utah time (Mon-Thu 8am-5pm, Fri 8am-2pm) ---- */
+  function initOpenNow() {
+    const el = $("#mnow");
+    if (!el || !window.Intl) return;
+    const check = () => {
+      let open = false;
+      try {
+        const parts = new Intl.DateTimeFormat("en-US", {
+          timeZone: "America/Denver",
+          weekday: "short",
+          hour: "numeric",
+          minute: "numeric",
+          hour12: false,
+        }).formatToParts(new Date());
+        const get = (t) => (parts.find((x) => x.type === t) || {}).value,
+          day = get("weekday"),
+          mins = (+get("hour") % 24) * 60 + +get("minute"),
+          close = { Mon: 1020, Tue: 1020, Wed: 1020, Thu: 1020, Fri: 840 }[day];
+        open = !!close && mins >= 480 && mins < close;
+      } catch (e) {}
+      el.hidden = !open;
+    };
+    check();
+    setInterval(check, 60000);
   }
 
   /* ---- privacy policy popup ---- */
@@ -686,7 +866,7 @@
         a,
         ".",
       );
-      m.scrollIntoView({ block: "nearest", behavior: motion ? "smooth" : "auto" });
+      goTo(m, "nearest");
     }
     function setBusy(on) {
       busy = on;
@@ -703,7 +883,7 @@
       f.done.querySelector("[data-ph]").textContent = v.phone.pretty;
       f.done.hidden = false;
       f.done.focus({ preventScroll: true });
-      f.done.scrollIntoView({ block: "nearest" });
+      goTo(f.done, "nearest");
     }
     function send() {
       if (busy) return;
@@ -825,7 +1005,8 @@
         chip.checked = true;
       }
       const target = el.id === "form" ? $("#lead") || el : el;
-      target.scrollIntoView({ behavior: "auto", block: "start" });
+      $$(".end,.hero").forEach((x) => (x.scrollTop = 0));
+      goTo(target);
     });
   }
 
@@ -885,6 +1066,7 @@
   safe("clicks", initClicks);
   safe("lead", initLead);
   safe("privacy", initPrivacy);
+  safe("open now", initOpenNow);
   safe("hero", initHero);
   safe("counters", initCounters);
   safe("film", initFilm);
