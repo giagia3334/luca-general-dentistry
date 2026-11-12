@@ -467,20 +467,24 @@
       dot = 1.5,
       seed = 7;
     const rnd = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646; // same layout on every rebuild
-    function sample(draw, step) {
-      const off = document.createElement("canvas");
-      off.width = PW;
-      off.height = PH;
+    /* the shapes are drawn K times larger and read every `step` pixels: the grid is step / K css pixels (1.5 on phones) */
+    function sample(draw, step, K) {
+      const off = document.createElement("canvas"),
+        w = PW * K,
+        hh = PH * K;
+      off.width = w;
+      off.height = hh;
       const o = off.getContext("2d", { willReadFrequently: true });
+      o.scale(K, K);
       o.textAlign = "center";
       o.textBaseline = "middle";
       draw(o);
-      const d = o.getImageData(0, 0, PW, PH).data,
+      const d = o.getImageData(0, 0, w, hh).data,
         out = [];
-      for (let y = 0; y < PH; y += step)
-        for (let x = 0; x < PW; x += step) {
-          const k = (y * PW + x) * 4;
-          if (d[k + 3] > 128) out.push({ x: x, y: y, c: d[k] < 120 ? INK : d[k + 1] > 170 ? "#fff" : PINK });
+      for (let y = 0; y < hh; y += step)
+        for (let x = 0; x < w; x += step) {
+          const k = (y * w + x) * 4;
+          if (d[k + 3] > 128) out.push({ x: x / K, y: y / K, c: d[k] < 120 ? INK : d[k + 1] > 170 ? "#fff" : PINK });
         }
       return out;
     }
@@ -506,9 +510,10 @@
       cv.width = Math.round(PW * dpr);
       cv.height = Math.round(PH * dpr);
       const col = PW < 700,
-        step = col ? 2 : 3, // finer grid than before: about twice the dots on a phone
+        K = col ? 2 : 1,
+        step = col ? 3 : 2, // grid of 1.5 css px on phones and 2 on wide screens: small pixels, so the numbers read crisp
         F = " Urbanist, Arial, sans-serif";
-      dot = col ? 1.5 : 2.6;
+      dot = col ? 1.2 : 1.65;
       const fs = col ? Math.min(PW * 0.25, PH * 0.115) : Math.min(PW * 0.11, PH * 0.26);
       const pos = col
         ? [
@@ -550,7 +555,7 @@
           o.letterSpacing = cs.letterSpacing;
         } catch (e) {}
         o.fillText(ibtn.textContent.trim().toUpperCase(), bx + r.width / 2, by + r.height / 2 + 1);
-      }, step);
+      }, step, K);
       [...plab.children].forEach((el, i) => {
         el.style.left = pos[i][0] + "px";
         el.style.top = pos[i][1] + fs * 0.54 + "px";
@@ -563,7 +568,7 @@
       const S = sample((o) => {
         o.fillStyle = GOLD;
         for (let i = 0; i < 5; i++) star(o, PW / 2 + (i - 2) * gap, sy, R);
-      }, step).sort((a, b) => a.x - b.x || a.y - b.y);
+      }, step, K).sort((a, b) => a.x - b.x || a.y - b.y);
       const far = Math.max(PW, PH);
       P = A.map((q) => {
         const a = rnd() * Math.PI * 2,
@@ -641,7 +646,7 @@
             const k = Math.sin(ta * Math.PI) * q.w;
             x = q.sx + (q.tx - q.sx) * ta + q.nx * k;
             y = q.sy + (q.ty - q.sy) * ta + q.ny * k;
-            s = dot * (1 + (1 - ta) * 1.6); // dots are larger while far away, like coming closer into focus
+            s = dot * (1 + (1 - ta) * 3.1); // big soft dots while they fly, shrinking into fine pixels as they land
             al = Math.min(1, ta * 1.5);
             if (ta < 0.82 && c !== "#fff") c = PINK; // everything travels in brand pink and settles into its own colour
           } else {
@@ -659,6 +664,7 @@
           } else {
             x = q.tx + (q.ex - q.tx) * tb;
             y = q.ty + (q.ey - q.ty) * tb;
+            s = dot * (1 + tb * 2.2);
             al = 1 - tb;
           }
         }

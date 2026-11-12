@@ -548,37 +548,39 @@ summary:focus-visible {
   color: #3c3e45;
 }
 /* ---------- team + insta ---------- */
+/* The line sits above the photo. The photo melts into the page on every side, and the Instagram dots rise from under
+   its faded bottom edge: the motion section slides up beneath the photo by --tov. */
+:root {
+  --tov: 24vw;
+}
 .teamband {
-  min-height: clamp(340px, 56vw, 780px);
   position: relative;
-  isolation: isolate;
+  z-index: 3;
   color: var(--ink);
-  display: grid;
-  align-items: end;
+  display: flex;
+  flex-direction: column;
+  padding-top: clamp(34px, 5vw, 76px);
 }
 .teamband .in {
+  order: -1;
   width: 100%;
-  padding-block: clamp(22px, 4vw, 44px) clamp(10px, 2vw, 24px);
+  padding-block: 0;
+  margin-bottom: -8px;
+  position: relative;
+  z-index: 1;
 }
 .teamband > picture {
   display: contents;
 }
 .teamband .tbimg {
-  position: absolute;
-  inset: 0;
-  z-index: -2;
+  display: block;
   width: 100%;
-  height: 100%;
+  height: auto;
   max-width: none;
+  aspect-ratio: 6 / 5; /* a little taller than the photo, so the team reads larger on a phone; trims 4% off each side */
   object-fit: cover;
-  object-position: center 55%;
-}
-.teamband::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background: linear-gradient(to top, #fff 0%, #fffffff0 10%, #ffffff00 34%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 13%, #000 64%, #0009 82%, transparent 99%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 13%, #000 64%, #0009 82%, transparent 99%);
 }
 .insta {
   height: 215vh;
@@ -1769,44 +1771,45 @@ dialog.pp:target:not([open]) {
   border-radius: 30px 30px 0 0;
   box-shadow: 0 -24px 60px -34px #14141759;
 }
-/* team on wide screens: the line sits centred ABOVE the photo, and the photo melts into the page on all sides */
+/* team on wide screens: centred line, 16:9 photo that also fades at the sides */
 @media (min-width: 821px) {
-  .teamband {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    padding-top: clamp(40px, 5vw, 76px);
-    padding-bottom: clamp(18px, 3vw, 44px);
+  :root {
+    --tov: min(14vw, 174px);
   }
   .teamband .in {
-    order: -1;
     text-align: center;
-    padding-block: 0;
     margin-bottom: clamp(-34px, -2vw, -12px);
-    position: relative;
-    z-index: 1;
   }
   .teamband .tbimg {
-    position: static;
-    display: block;
     width: min(100%, 1240px);
-    height: auto;
     aspect-ratio: 16 / 9;
     margin: 0 auto;
     object-position: center 42%;
-    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 20%, #000 80%, transparent 99%),
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 20%, #000 68%, #0009 84%, transparent 99%),
       linear-gradient(to right, transparent 0, #000 9%, #000 91%, transparent 100%);
-    mask-image: linear-gradient(to bottom, transparent 0, #000 20%, #000 80%, transparent 99%),
+    mask-image: linear-gradient(to bottom, transparent 0, #000 20%, #000 68%, #0009 84%, transparent 99%),
       linear-gradient(to right, transparent 0, #000 9%, #000 91%, transparent 100%);
     -webkit-mask-composite: source-in;
     mask-composite: intersect;
   }
-  .teamband::before {
-    display: none;
-  }
   .teamband h2 {
     font-size: clamp(38px, 4.6vw, 64px);
   }
+}
+/* the motion section starts under the photo; its first dots fade in from nothing right where the photo turns solid */
+.insta:not(.static) {
+  margin-top: calc(-1 * var(--tov));
+}
+.insta:not(.static)::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: calc(var(--tov) * 1.15);
+  background: linear-gradient(to bottom, #fff 0, #fffc 30%, #fff0 100%);
+  z-index: 2;
+  pointer-events: none;
 }
 /* ---------- the Google rating lives in the motion: stars, then the line under them ---------- */
 .insta .rate {
