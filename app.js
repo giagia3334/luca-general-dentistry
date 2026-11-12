@@ -1,8 +1,14 @@
 (function () {
   /* ---- config: the only values to touch when the page goes live ---- */
   const CONFIG = {
-    FORM_ENDPOINT: "", // empty = draft: nothing is sent, the card says so and offers the phone number
-    FORM_CONTENT_TYPE: "application/json", // use "text/plain" if the endpoint does not answer a CORS preflight (same JSON body)
+    // The form goes live with ONE switch. false = draft: nothing is sent, the card says so and offers the phone number.
+    // Turn it on only after at least one of the Zaps below is published, or visitors would see "sent" for nothing.
+    FORM_LIVE: false,
+    FORM_ENDPOINTS: [
+      "https://hooks.zapier.com/hooks/catch/20831475/4546aym/", // Zap "Luca - General Dentistry LP Leads to GHL pipeline"
+      "https://hooks.zapier.com/hooks/catch/20831475/4546jwm/", // Zap "Luca - General Dentistry LP Leads to Monday (PPC Ads)"
+    ],
+    FORM_CONTENT_TYPE: "text/plain", // Zapier hooks read the JSON body and need no CORS preflight this way
     FORM_TIMEOUT_MS: 12000,
     DRAFT: true, // labels every dataLayer event and payload as a test; set to false at launch
     SOURCE: "Google Ads - General Dentistry",
@@ -903,7 +909,7 @@
         track("form_error", { error_type: "spam_check" });
         return;
       }
-      if (!CONFIG.FORM_ENDPOINT) {
+      if (!CONFIG.FORM_LIVE || !CONFIG.FORM_ENDPOINTS.length) {
         form.dataset.state = "draft";
         say("draft");
         track("form_draft_submit", { service: svc });
@@ -918,16 +924,26 @@
       setBusy(true);
       const ctl = "AbortController" in window ? new AbortController() : null,
         timer = setTimeout(() => ctl && ctl.abort(), CONFIG.FORM_TIMEOUT_MS);
-      fetch(CONFIG.FORM_ENDPOINT, {
-        method: "POST",
-        mode: "cors",
-        credentials: "omit",
-        headers: { "Content-Type": CONFIG.FORM_CONTENT_TYPE },
-        body: JSON.stringify(payload),
-        signal: ctl ? ctl.signal : undefined,
-      })
-        .then((res) => {
-          if (!res.ok) throw new Error("http_" + res.status);
+      /* the same request goes to every hook; it counts as sent when at least one of them accepts it */
+      Promise.all(
+        CONFIG.FORM_ENDPOINTS.map((url) =>
+          fetch(url, {
+            method: "POST",
+            mode: "cors",
+            credentials: "omit",
+            headers: { "Content-Type": CONFIG.FORM_CONTENT_TYPE },
+            body: JSON.stringify(payload),
+            signal: ctl ? ctl.signal : undefined,
+          }).then(
+            (res) => (res.ok ? null : new Error("http_" + res.status)),
+            (err) => err || new Error("network"),
+          ),
+        ),
+      )
+        .then((results) => {
+          const failed = results.filter(Boolean);
+          if (failed.length === results.length) throw failed[0];
+          if (failed.length) track("form_error", { error_type: "partial_send" });
         })
         .then(
           () => {
