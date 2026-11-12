@@ -218,15 +218,43 @@
     const fv = $("#filmVid"),
       btn = $("#playStory2"),
       lite = !!(navigator.connection && navigator.connection.saveData);
+    /* phones get a lighter cut of the loop (about half the size), so it starts sooner on mobile data */
+    const FILM = window.matchMedia && matchMedia("(max-width: 700px)").matches ? "media/luca-film-m.mp4" : "media/luca-film.mp4";
     let story = false,
-      seen = false;
+      seen = false,
+      blocked = false; // the browser refused autoplay (iOS Low Power Mode, data saver): the next touch starts it
+    const tryPlay = () => {
+      fv.muted = true;
+      const p = fv.play();
+      if (p && p.then)
+        p.then(
+          () => (blocked = false),
+          () => (blocked = true),
+        );
+    };
     const loop = () => {
       if (story) return;
-      if (seen && motion && !lite) {
-        fv.muted = true;
-        fv.play().catch(() => {});
-      } else fv.pause();
+      if (seen && motion && !lite) tryPlay();
+      else fv.pause();
     };
+    /* start downloading one screen before the film scrolls in, so it is ready to play on arrival */
+    if (hasIO && !lite)
+      new IntersectionObserver(
+        (es, o) => {
+          if (!es.some((e) => e.isIntersecting)) return;
+          o.disconnect();
+          if (story || fv.readyState > 0 || !fv.paused) return;
+          fv.preload = "auto";
+          fv.load();
+        },
+        { rootMargin: "120% 0px" },
+      ).observe(fv);
+    fv.addEventListener("canplay", () => !story && seen && fv.paused && loop());
+    ["touchend", "click"].forEach((ev) =>
+      document.addEventListener(ev, () => blocked && !story && loop(), { passive: true }),
+    );
+    document.addEventListener("visibilitychange", () => !document.hidden && loop());
+    fv.addEventListener("click", () => !story && fv.paused && tryPlay()); // a tap on the film always starts it
     if (hasIO)
       new IntersectionObserver(
         (es) =>
@@ -242,7 +270,7 @@
       if (!story) return;
       story = false;
       fv.controls = false;
-      fv.src = "media/luca-film.mp4";
+      fv.src = FILM;
       fv.loop = true;
       fv.muted = true;
       btn.hidden = false;
@@ -739,6 +767,14 @@
       txt.textContent = label;
       el.classList.toggle("closed", !open);
       el.hidden = false;
+      /* the same status above "Ready when you are."; when closed it says what happens with a request */
+      const f = $("#fnow"),
+        ft = $("#fnow-t");
+      if (f && ft) {
+        ft.textContent = open ? "Open now" : "Closed now · we call you back when we open";
+        f.classList.toggle("closed", !open);
+        f.hidden = false;
+      }
     };
     check();
     setInterval(check, 60000);
