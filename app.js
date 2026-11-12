@@ -139,33 +139,6 @@
     clearTimeout(litT);
     litT = setTimeout(() => h.classList.add("lit"), 4600); // safety: the light always ends in its resting state
   }
-  /* draft only: three fonts for the line inside the light, to pick from on the real hero */
-  function initFontPick() {
-    const pick = $("#fontpick"),
-      h = $(".hero");
-    if (!pick || !CONFIG.DRAFT) return;
-    const set = (n) => {
-      h.dataset.lf = n;
-      [...pick.querySelectorAll("button")].forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.f === String(n))));
-    };
-    let n = "2";
-    try {
-      n = localStorage.getItem("luca_lf") || "2";
-    } catch (e) {}
-    set(n);
-    pick.hidden = false;
-    pick.addEventListener("click", (e) => {
-      const b = e.target.closest("button");
-      if (!b) return;
-      set(b.dataset.f);
-      try {
-        localStorage.setItem("luca_lf", b.dataset.f);
-      } catch (err) {}
-      h.style.removeProperty("--mx");
-      h.style.removeProperty("--my");
-      if (motion) playHero();
-    });
-  }
   function initHero() {
     /* the ad can name the town: ?city=north-salt-lake, or the keyword in utm_term / kw. Whitelist only. */
     let q = null;
@@ -418,6 +391,7 @@
 
   /* ---- reviews: one card per swipe, dots, one small nudge that gives way to the visitor ---- */
   function initReviews() {
+    if (!$("#rv")) return; // review cards are off until real reviews are supplied
     const rv = $("#rv"),
       rcs = [...rv.children],
       dots = $("#dots");
@@ -1111,7 +1085,6 @@
   safe("privacy", initPrivacy);
   safe("open now", initOpenNow);
   safe("hero", initHero);
-  safe("fontpick", initFontPick);
   safe("counters", initCounters);
   safe("film", initFilm);
   safe("gallery", initGallery);
