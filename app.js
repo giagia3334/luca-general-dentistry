@@ -2,13 +2,12 @@
   /* ---- config: the only values to touch when the page goes live ---- */
   const CONFIG = {
     // The form goes live with ONE switch. false = draft: nothing is sent, the card says so and offers the phone number.
-    // Turn it on only after at least one of the Zaps below is published, or visitors would see "sent" for nothing.
-    FORM_LIVE: false,
-    FORM_ENDPOINTS: [
-      "https://hooks.zapier.com/hooks/catch/20831475/4546aym/", // Zap "Luca - General Dentistry LP Leads to GHL pipeline"
-      "https://hooks.zapier.com/hooks/catch/20831475/4546jwm/", // Zap "Luca - General Dentistry LP Leads to Monday (PPC Ads)"
-    ],
-    FORM_CONTENT_TYPE: "text/plain", // Zapier hooks read the JSON body and need no CORS preflight this way
+    FORM_LIVE: true,
+    // Each lead is posted to every endpoint here; it counts as sent when at least one accepts it.
+    // 1. GHL workflow "Google Ads General LP - form into pipeline" (inbound webhook, needs application/json).
+    // 2. After the client approves the page, add the Monday Zap back (it is built and OFF):
+    //    { url: "https://hooks.zapier.com/hooks/catch/20831475/4546jwm/", type: "text/plain" }
+    FORM_ENDPOINTS: [{ url: "https://services.leadconnectorhq.com/hooks/YvQv7xRdyhF7GymYHohO/webhook-trigger/cf23f83b-7459-475b-89ae-d9da6ddaf0f7", type: "application/json" }],
     FORM_TIMEOUT_MS: 12000,
     DRAFT: true, // labels every dataLayer event and payload as a test; set to false at launch
     SOURCE: "Google Ads - General Dentistry",
@@ -927,12 +926,12 @@
         timer = setTimeout(() => ctl && ctl.abort(), CONFIG.FORM_TIMEOUT_MS);
       /* the same request goes to every hook; it counts as sent when at least one of them accepts it */
       Promise.all(
-        CONFIG.FORM_ENDPOINTS.map((url) =>
-          fetch(url, {
+        CONFIG.FORM_ENDPOINTS.map((ep) =>
+          fetch(ep.url, {
             method: "POST",
             mode: "cors",
             credentials: "omit",
-            headers: { "Content-Type": CONFIG.FORM_CONTENT_TYPE },
+            headers: { "Content-Type": ep.type },
             body: JSON.stringify(payload),
             signal: ctl ? ctl.signal : undefined,
           }).then(
