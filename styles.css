@@ -1737,45 +1737,6 @@ dialog.pp:target:not([open]) {
   transition: none;
 }
 /* ---------- 13 Nov, second pass ---------- */
-/* draft-only switch between the three hero photos */
-.heropick {
-  position: absolute;
-  top: 74px;
-  right: max(14px, env(safe-area-inset-right, 0px));
-  z-index: 3;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 6px 5px 12px;
-  border-radius: 99px;
-  background: #0d0d10b0;
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: #fff;
-}
-.heropick button {
-  font: inherit;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  border: 1px solid #ffffff55;
-  background: transparent;
-  color: #fff;
-  cursor: pointer;
-}
-.heropick button[aria-pressed="true"] {
-  background: #fff;
-  color: var(--ink);
-  border-color: #fff;
-}
-@media (min-width: 821px) {
-  .heropick {
-    top: 96px;
-  }
-}
 /* "Open now" on the map */
 .mnow {
   position: absolute;

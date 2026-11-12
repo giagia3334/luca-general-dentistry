@@ -177,49 +177,6 @@
         h.style.setProperty("--my", ((e.clientY - r.top) / r.height) * 100 + "%");
       });
     });
-
-    /* hero photo options (draft only): ?hero=2, or the small 1 2 3 switch on the photo */
-    const pic = h.querySelector("picture"),
-      first = pic.innerHTML,
-      pick = $("#heropick");
-    const HEROES = {
-      1: ["img/hero-1-m.jpg", "img/hero-1.jpg"],
-      2: ["img/hero-2-m.jpg", "img/hero-2.jpg"],
-      3: ["img/hero-3-m.jpg", "img/hero-3.jpg"],
-    };
-    function setHero(n, replay) {
-      if (!HEROES[n]) return;
-      if (n === 1) pic.innerHTML = first;
-      else {
-        const small = window.matchMedia && matchMedia("(max-width: 600px)").matches;
-        pic.innerHTML = '<img class="ph" alt="" src="' + HEROES[n][small ? 0 : 1] + '" />';
-      }
-      h.dataset.hero = n;
-      if (pick)
-        [...pick.querySelectorAll("button")].forEach((b) => b.setAttribute("aria-pressed", String(+b.dataset.h === n)));
-      if (replay && motion) {
-        h.style.removeProperty("--mx");
-        h.style.removeProperty("--my");
-        playHero();
-      }
-    }
-    let want = 1;
-    try {
-      want = +(q && q.get("hero")) || +localStorage.getItem("luca_hero") || 1;
-    } catch (e) {}
-    if (pick && CONFIG.DRAFT) {
-      pick.hidden = false;
-      pick.addEventListener("click", (e) => {
-        const b = e.target.closest("button");
-        if (!b) return;
-        setHero(+b.dataset.h, true);
-        try {
-          localStorage.setItem("luca_hero", b.dataset.h);
-        } catch (err) {}
-        track("hero_photo_pick", { option: b.dataset.h });
-      });
-    }
-    if (want !== 1) setHero(want, false);
   }
   function nextCity() {
     if (!motion || !heroSeen || document.hidden) return;
