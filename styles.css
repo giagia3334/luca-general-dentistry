@@ -1819,3 +1819,81 @@ dialog.pp:target:not([open]) {
   background: #9a9aa3;
   box-shadow: 0 0 0 4px #9a9aa333;
 }
+/* ---------- 17 Nov: Gia's notes ---------- */
+/* "What people say": drawn by the dots when motion is on, plain heading otherwise */
+.insta .say {
+  margin: 0;
+  font: 900 clamp(34px, 6vw, 72px) / 1.05 Urbanist, Arial, sans-serif;
+  color: var(--ink);
+  text-align: center;
+}
+.insta:not(.static) .say {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+/* back to top: small, quiet, only while scrolling back up */
+.totop {
+  position: fixed;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  left: 50%;
+  z-index: 55;
+  width: 42px;
+  height: 42px;
+  margin-left: -21px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #ffffffe6;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  color: var(--ink);
+  box-shadow:
+    0 6px 18px #0000002e,
+    0 1px 3px #0002;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px);
+  transition:
+    opacity 0.25s,
+    visibility 0.25s,
+    transform 0.3s var(--e);
+}
+.totop.on {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+}
+.totop svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.totop:focus-visible {
+  opacity: 1;
+  visibility: visible;
+  outline: 2px solid var(--pink, #fb0199);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .totop {
+    transition: none;
+  }
+}
+/* phones: one floating button at a time (book; call takes over at the form), and none while a page button is on screen */
+@media (max-width: 700px) {
+  .fab:not(.atform) .fb.call {
+    display: none;
+  }
+  .fab.busy {
+    opacity: 0;
+    visibility: hidden;
+  }
+}

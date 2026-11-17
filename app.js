@@ -125,7 +125,7 @@
   }
 
   /* ---- hero: light intro, rotating city, spotlight, photo options while in draft ---- */
-  const cities = ["Bountiful", "Woods Cross", "North Salt Lake", "Centerville"];
+  const cities = ["Salt Lake"]; // one place name, no rotation (Gia, 17 Nov)
   let ci = 0,
     cityT = null,
     heroSeen = true,
@@ -139,27 +139,6 @@
     litT = setTimeout(() => h.classList.add("lit"), 4600); // safety: the light always ends in its resting state
   }
   function initHero() {
-    /* the ad can name the town: ?city=north-salt-lake, or the keyword in utm_term / kw. Whitelist only. */
-    let q = null;
-    try {
-      q = new URLSearchParams(location.search);
-      const raw =
-        " " +
-        [q.get("city"), q.get("kw"), q.get("utm_term")]
-          .join(" ")
-          .toLowerCase()
-          .replace(/[^a-z]+/g, " ") +
-        " ";
-      if (raw.indexOf(" west bountiful ") < 0) {
-        const hit = ["North Salt Lake", "Woods Cross", "Centerville", "Bountiful"].find(
-          (c) => raw.indexOf(" " + c.toLowerCase() + " ") >= 0,
-        );
-        if (hit) {
-          ci = cities.indexOf(hit);
-          $(".hero .cw").textContent = hit;
-        }
-      }
-    } catch (e) {}
     if (hasIO) new IntersectionObserver((es) => (heroSeen = es[es.length - 1].isIntersecting)).observe($(".hero"));
     const h = $(".h2x");
     /* the light travels once on its own (the phrase rides inside it), then rests; after that the mouse can move it */
@@ -452,11 +431,8 @@
     const insta = $("#insta"),
       cv = $("#pc"),
       ctx = cv.getContext("2d"),
-      plab = $("#plab"),
-      prate = $("#prate"),
-      ibtn = $("#ibtn");
+      prate = $("#prate");
     if (!ctx) return;
-    const STATS = [...plab.querySelectorAll("b")].map((b) => b.textContent.trim());
     const INK = "#141417",
       PINK = "#fb0199",
       GOLD = "#ffb800";
@@ -514,52 +490,23 @@
         step = col ? 3 : 2, // grid of 1.5 css px on phones and 2 on wide screens: small pixels, so the numbers read crisp
         F = " Urbanist, Arial, sans-serif";
       dot = col ? 1.2 : 1.65;
-      const fs = col ? Math.min(PW * 0.25, PH * 0.115) : Math.min(PW * 0.11, PH * 0.26);
-      const pos = col
-        ? [
-            [PW / 2, PH * 0.24],
-            [PW / 2, PH * 0.41],
-            [PW / 2, PH * 0.58],
-          ]
-        : [
-            [PW * 0.17, PH * 0.42],
-            [PW * 0.5, PH * 0.42],
-            [PW * 0.83, PH * 0.42],
-          ];
-      const bp = col ? [PW / 2, PH * 0.77] : [PW / 2, PH * 0.74];
-      ibtn.style.left = bp[0] + "px";
-      ibtn.style.top = bp[1] + "px";
-      const r = ibtn.getBoundingClientRect(),
-        c = cv.getBoundingClientRect(),
-        bx = r.left - c.left,
-        by = r.top - c.top,
-        cs = getComputedStyle(ibtn);
+      /* "What people say": two lines on phones, one line on wide screens; "say" in brand pink */
+      const fs = col ? Math.min(PW * 0.135, PH * 0.085) : Math.min(PW * 0.075, PH * 0.17),
+        lines = col ? [["What people", ""], ["", "say"]] : [["What people ", "say"]],
+        ly = col ? [PH * 0.44, PH * 0.44 + fs * 1.05] : [PH * 0.48];
       const A = sample((o) => {
         o.font = "900 " + fs + "px" + F;
-        STATS.forEach((t, i) => {
-          o.fillStyle = i === 1 ? PINK : INK;
-          o.fillText(t, pos[i][0], pos[i][1]);
+        o.textAlign = "left";
+        lines.forEach((ln, i) => {
+          const w0 = o.measureText(ln[0]).width,
+            w1 = o.measureText(ln[1]).width,
+            x0 = PW / 2 - (w0 + w1) / 2;
+          o.fillStyle = INK;
+          o.fillText(ln[0], x0, ly[i]);
+          o.fillStyle = PINK;
+          o.fillText(ln[1], x0 + w0, ly[i]);
         });
-        o.fillStyle = PINK;
-        const rad = r.height / 2;
-        o.beginPath();
-        o.moveTo(bx + rad, by);
-        o.arcTo(bx + r.width, by, bx + r.width, by + r.height, rad);
-        o.arcTo(bx + r.width, by + r.height, bx, by + r.height, rad);
-        o.arcTo(bx, by + r.height, bx, by, rad);
-        o.arcTo(bx, by, bx + r.width, by, rad);
-        o.fill();
-        o.fillStyle = "#fff";
-        o.font = "800 " + cs.fontSize + F;
-        try {
-          o.letterSpacing = cs.letterSpacing;
-        } catch (e) {}
-        o.fillText(ibtn.textContent.trim().toUpperCase(), bx + r.width / 2, by + r.height / 2 + 1);
       }, step, K);
-      [...plab.children].forEach((el, i) => {
-        el.style.left = pos[i][0] + "px";
-        el.style.top = pos[i][1] + fs * 0.54 + "px";
-      });
       /* five stars, in the part of the frame that stays visible above the rising reviews section */
       const R = col ? Math.min(PW * 0.064, 27) : Math.min(PW * 0.03, 44),
         sy = PH * (col ? 0.3 : 0.235),
@@ -620,10 +567,6 @@
         lead = innerHeight * 0.75,
         span = r.height - innerHeight + lead;
       const p = Math.min(1, Math.max(0, (lead - r.top) / span));
-      insta.style.setProperty("--lab", (cl(p, 0.28, 0.36) - cl(p, 0.66, 0.72)).toFixed(3));
-      const bo = cl(p, 0.33, 0.38) - cl(p, 0.66, 0.7);
-      insta.style.setProperty("--btn", bo.toFixed(3));
-      insta.classList.toggle("btnon", bo > 0.9);
       insta.style.setProperty("--rate", cl(p, 0.84, 0.95).toFixed(3)); // "4.9 from 479 Google reviews" arrives as the stars settle
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, PW, PH);
@@ -1028,19 +971,41 @@
 
   /* ---- floating buttons: shown once the hero buttons have scrolled away (phones); the calendar steps aside at the form ---- */
   function initFab() {
-    const fab = $(".fab");
+    const fab = $(".fab"),
+      top = $("#totop");
     fab.classList.add("js");
+    /* back to top: a small arrow that shows only while scrolling back up, far enough down the page */
+    if (top) {
+      let lastY = scrollY,
+        tk = false;
+      addEventListener(
+        "scroll",
+        () => {
+          if (tk) return;
+          tk = true;
+          requestAnimationFrame(() => {
+            tk = false;
+            const y = scrollY;
+            if (Math.abs(y - lastY) < 6) return;
+            top.classList.toggle("on", y < lastY && y > innerHeight * 1.5);
+            lastY = y;
+          });
+        },
+        { passive: true },
+      );
+      top.addEventListener("click", (e) => {
+        e.preventDefault();
+        top.classList.remove("on");
+        scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+      });
+    }
     if (!hasIO) return fab.classList.add("on");
     const hero = $(".hero .cta"),
       lead = $("#lead");
-    let heroIn = true;
     new IntersectionObserver(
       (es) =>
         es.forEach((e) => {
-          if (e.target === hero) {
-            heroIn = e.isIntersecting;
-            fab.classList.toggle("athero", heroIn);
-          } else fab.classList.toggle("atform", e.isIntersecting);
+          fab.classList.toggle("athero", e.isIntersecting);
           fab.classList.add("on");
         }),
       { threshold: 0.15 },
@@ -1048,6 +1013,16 @@
     new IntersectionObserver((es) => es.forEach((e) => fab.classList.toggle("atform", e.isIntersecting)), {
       threshold: 0.15,
     }).observe(lead);
+    /* phones: one call to action at a time, so the floating button steps aside while a page button is on screen */
+    const seen = new Set(),
+      io = new IntersectionObserver(
+        (es) => {
+          es.forEach((e) => (e.isIntersecting ? seen.add(e.target) : seen.delete(e.target)));
+          fab.classList.toggle("busy", seen.size > 0);
+        },
+        { threshold: 0.5 },
+      );
+    $$("main .btn").forEach((el) => io.observe(el));
   }
 
   /* ---- motion switch (device setting, or the review shell's Motion button) ---- */
@@ -1058,7 +1033,6 @@
       if (motion) {
         arm();
         playHero();
-        if (!cityT) cityT = setInterval(nextCity, 2800);
       } else {
         clearInterval(cityT);
         cityT = null;
@@ -1084,7 +1058,6 @@
   safe("privacy", initPrivacy);
   safe("open now", initOpenNow);
   safe("hero", initHero);
-  safe("counters", initCounters);
   safe("film", initFilm);
   safe("gallery", initGallery);
   safe("reviews", initReviews);
