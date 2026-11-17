@@ -742,6 +742,33 @@
   }
 
   /* ---- privacy policy popup ---- */
+  /* draft-only: FAQ higher up (after services, before the visit section) or at the end. ?faq=top also works */
+  function initFaqPick() {
+    const faq = $("#faq"),
+      pick = $("#faqpick");
+    if (!faq || !pick) return;
+    const home = faq.nextElementSibling, // the original spot: right before the form
+      up = $("#visit");
+    let mode = "bottom";
+    try {
+      mode = new URLSearchParams(location.search).get("faq") === "top" ? "top" : localStorage.getItem("luca_faq") || "bottom";
+    } catch (e) {}
+    const set = (m) => {
+      mode = m;
+      if (m === "top" && up) up.parentNode.insertBefore(faq, up);
+      else if (home) home.parentNode.insertBefore(faq, home);
+      faq.classList.toggle("grey", m !== "top");
+      $$("#faqpick button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.faq === m)));
+      try {
+        localStorage.setItem("luca_faq", m);
+      } catch (e) {}
+    };
+    pick.addEventListener("click", (e) => {
+      const b = e.target.closest("button[data-faq]");
+      if (b) set(b.dataset.faq);
+    });
+    set(mode);
+  }
   function initHours() {
     const d = $("#hrs"),
       o = $("#hrsOpen"),
@@ -1087,6 +1114,7 @@
   safe("clicks", initClicks);
   safe("lead", initLead);
   safe("privacy", initPrivacy);
+  safe("faq position", initFaqPick);
   safe("open now", initOpenNow);
   safe("hours", initHours);
   safe("hero", initHero);

@@ -2025,3 +2025,38 @@ dialog.pp:target:not([open]) {
 .fab.closed .fb.call {
   display: none;
 }
+/* draft-only switch for the FAQ position (review aid, remove before launch) */
+.faqpick {
+  position: fixed;
+  left: max(12px, env(safe-area-inset-left, 0px));
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 4px 4px 12px;
+  border-radius: 99px;
+  background: #0d0d10cc;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  font: 700 11px/1 Urbanist, Arial, sans-serif;
+  letter-spacing: 0.06em;
+}
+.faqpick span {
+  margin-right: 4px;
+}
+.faqpick button {
+  font: inherit;
+  letter-spacing: 0;
+  color: #fff;
+  background: transparent;
+  border: 0;
+  border-radius: 99px;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+.faqpick button[aria-pressed="true"] {
+  background: #fff;
+  color: #141417;
+}
