@@ -2060,3 +2060,34 @@ dialog.pp:target:not([open]) {
   background: #fff;
   color: #141417;
 }
+
+
+/* ---------- why + film, one block: side by side on desktop, stacked on phones ---------- */
+.whyfilm {
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  gap: clamp(28px, 4.5vw, 64px);
+  align-items: center;
+}
+.whyfilm > * {
+  min-width: 0;
+}
+.whyfilm #why .big,
+#why .whyfilm .big {
+  font-size: clamp(46px, 7vw, 96px);
+}
+.whyfilm .filmsec {
+  gap: 22px;
+}
+.whyfilm .fcap h2 {
+  font-size: clamp(24px, 2.4vw, 32px);
+}
+@media (max-width: 820px) {
+  .whyfilm {
+    grid-template-columns: 1fr;
+    gap: 34px;
+  }
+  .whyfilm .fcap h2 {
+    font-size: clamp(26px, 6.6vw, 34px);
+  }
+}

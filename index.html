@@ -49,10 +49,6 @@
     ></noscript>
     <!-- GTM:end -->
     <!-- HERO 2: spotlight -->
-    <div class="faqpick" id="faqpick">
-      <span>FAQ</span><button type="button" data-faq="top" aria-pressed="false">Higher up</button
-      ><button type="button" data-faq="bottom" aria-pressed="true">At the end</button>
-    </div>
     <header class="hero h2x">
       <picture>
         <source media="(max-width: 600px)" type="image/avif" srcset="img/hero-1-m.avif" />
@@ -169,7 +165,8 @@
     </header>
     <main id="main">
       <section class="s" id="why">
-        <div class="in rvs">
+        <div class="in whyfilm">
+        <div class="rvs whytxt">
           <div class="up" style="max-width: 720px">
             <div class="eyebrow">Why Luca</div>
             <h2 class="big">
@@ -186,117 +183,7 @@
             </ul>
           </div>
         </div>
-        <div class="gal" id="gal" role="group" aria-label="Office photos">
-          <button type="button" aria-label="Reception">
-            <picture
-              ><source
-                type="image/avif"
-                srcset="img/reception-640.avif 640w, img/reception-960.avif 960w, img/reception-1600.avif 1600w"
-                sizes="(max-width: 820px) 80vw, min(58vw, 760px)" />
-              <img src="img/reception.jpg" alt="Reception" width="1600" height="1067" loading="lazy" decoding="async"
-            /></picture>
-          </button>
-          <button type="button" class="c" aria-label="Treatment rooms">
-            <picture
-              ><source
-                type="image/avif"
-                srcset="
-                  img/treatment-rooms-640.avif   640w,
-                  img/treatment-rooms-960.avif   960w,
-                  img/treatment-rooms-1600.avif 1600w
-                "
-                sizes="(max-width: 820px) 80vw, min(58vw, 760px)" />
-              <img
-                src="img/treatment-rooms.jpg"
-                alt="Treatment rooms"
-                width="1600"
-                height="1064"
-                loading="lazy"
-                decoding="async"
-            /></picture>
-          </button>
-          <button type="button" aria-label="Front desk">
-            <picture
-              ><source
-                type="image/avif"
-                srcset="img/front-desk-640.avif 640w, img/front-desk-960.avif 960w, img/front-desk-1600.avif 1600w"
-                sizes="(max-width: 820px) 80vw, min(58vw, 760px)" />
-              <img src="img/front-desk.jpg" alt="Front desk" width="1600" height="1064" loading="lazy" decoding="async"
-            /></picture>
-          </button>
-          <button type="button" aria-label="Airflow cleaning">
-            <picture
-              ><source
-                type="image/avif"
-                srcset="img/airflow-640.avif 640w, img/airflow-960.avif 960w, img/airflow-1600.avif 1600w"
-                sizes="(max-width: 820px) 80vw, min(58vw, 760px)" />
-              <img
-                src="img/airflow.jpg"
-                alt="Airflow cleaning"
-                width="1600"
-                height="1064"
-                loading="lazy"
-                decoding="async"
-            /></picture>
-          </button>
-          <button type="button" aria-label="Dr. Davis with a patient">
-            <picture
-              ><source
-                type="image/avif"
-                srcset="
-                  img/dr-davis-patient-640.avif   640w,
-                  img/dr-davis-patient-960.avif   960w,
-                  img/dr-davis-patient-1200.avif 1200w
-                "
-                sizes="(max-width: 820px) 80vw, min(58vw, 760px)" />
-              <img
-                src="img/dr-davis-patient.jpg"
-                alt="Dr. Davis with a patient"
-                width="1200"
-                height="1171"
-                loading="lazy"
-                decoding="async"
-            /></picture>
-          </button>
-          <button type="button" aria-label="In the chair">
-            <picture
-              ><source
-                type="image/avif"
-                srcset="
-                  img/in-the-chair-640.avif   640w,
-                  img/in-the-chair-960.avif   960w,
-                  img/in-the-chair-1600.avif 1600w
-                "
-                sizes="(max-width: 820px) 80vw, min(58vw, 760px)" />
-              <img
-                src="img/in-the-chair.jpg"
-                alt="In the chair"
-                width="1600"
-                height="1290"
-                loading="lazy"
-                decoding="async"
-            /></picture>
-          </button>
-          <button type="button" aria-label="Planning together">
-            <picture
-              ><source
-                type="image/avif"
-                srcset="img/planning-640.avif 640w, img/planning-960.avif 960w, img/planning-1600.avif 1600w"
-                sizes="(max-width: 820px) 80vw, min(58vw, 760px)" />
-              <img
-                src="img/planning.jpg"
-                alt="Planning together"
-                width="1600"
-                height="1064"
-                loading="lazy"
-                decoding="async"
-            /></picture>
-          </button>
-        </div>
-      </section>
-
-      <section class="s" id="film">
-        <div class="in filmsec rvs">
+        <div class="filmsec rvs" id="film">
           <div class="tiltwrap">
             <div class="tiltbg"></div>
             <div class="fbox tilt">
@@ -322,6 +209,7 @@
               >Watch the story
             </button>
           </div>
+        </div>
         </div>
       </section>
 
@@ -435,6 +323,116 @@
             <a class="btn" href="#form" data-ev="cta_click" data-loc="visit">Request a time</a
             ><a class="btn ghost" href="tel:+13854122543" data-call="visit">Call (385) 412-2543</a>
           </div>
+        </div>
+      </section>
+
+      <section class="s" id="photos" style="padding-top: 0">
+        <div class="gal" id="gal" role="group" aria-label="Office photos">
+          <button type="button" aria-label="Reception">
+            <picture
+              ><source
+                type="image/avif"
+                srcset="img/reception-640.avif 640w, img/reception-960.avif 960w, img/reception-1600.avif 1600w"
+                sizes="(max-width: 820px) 80vw, min(58vw, 760px)" />
+              <img src="img/reception.jpg" alt="Reception" width="1600" height="1067" loading="lazy" decoding="async"
+            /></picture>
+          </button>
+          <button type="button" class="c" aria-label="Treatment rooms">
+            <picture
+              ><source
+                type="image/avif"
+                srcset="
+                  img/treatment-rooms-640.avif   640w,
+                  img/treatment-rooms-960.avif   960w,
+                  img/treatment-rooms-1600.avif 1600w
+                "
+                sizes="(max-width: 820px) 80vw, min(58vw, 760px)" />
+              <img
+                src="img/treatment-rooms.jpg"
+                alt="Treatment rooms"
+                width="1600"
+                height="1064"
+                loading="lazy"
+                decoding="async"
+            /></picture>
+          </button>
+          <button type="button" aria-label="Front desk">
+            <picture
+              ><source
+                type="image/avif"
+                srcset="img/front-desk-640.avif 640w, img/front-desk-960.avif 960w, img/front-desk-1600.avif 1600w"
+                sizes="(max-width: 820px) 80vw, min(58vw, 760px)" />
+              <img src="img/front-desk.jpg" alt="Front desk" width="1600" height="1064" loading="lazy" decoding="async"
+            /></picture>
+          </button>
+          <button type="button" aria-label="Airflow cleaning">
+            <picture
+              ><source
+                type="image/avif"
+                srcset="img/airflow-640.avif 640w, img/airflow-960.avif 960w, img/airflow-1600.avif 1600w"
+                sizes="(max-width: 820px) 80vw, min(58vw, 760px)" />
+              <img
+                src="img/airflow.jpg"
+                alt="Airflow cleaning"
+                width="1600"
+                height="1064"
+                loading="lazy"
+                decoding="async"
+            /></picture>
+          </button>
+          <button type="button" aria-label="Dr. Davis with a patient">
+            <picture
+              ><source
+                type="image/avif"
+                srcset="
+                  img/dr-davis-patient-640.avif   640w,
+                  img/dr-davis-patient-960.avif   960w,
+                  img/dr-davis-patient-1200.avif 1200w
+                "
+                sizes="(max-width: 820px) 80vw, min(58vw, 760px)" />
+              <img
+                src="img/dr-davis-patient.jpg"
+                alt="Dr. Davis with a patient"
+                width="1200"
+                height="1171"
+                loading="lazy"
+                decoding="async"
+            /></picture>
+          </button>
+          <button type="button" aria-label="In the chair">
+            <picture
+              ><source
+                type="image/avif"
+                srcset="
+                  img/in-the-chair-640.avif   640w,
+                  img/in-the-chair-960.avif   960w,
+                  img/in-the-chair-1600.avif 1600w
+                "
+                sizes="(max-width: 820px) 80vw, min(58vw, 760px)" />
+              <img
+                src="img/in-the-chair.jpg"
+                alt="In the chair"
+                width="1600"
+                height="1290"
+                loading="lazy"
+                decoding="async"
+            /></picture>
+          </button>
+          <button type="button" aria-label="Planning together">
+            <picture
+              ><source
+                type="image/avif"
+                srcset="img/planning-640.avif 640w, img/planning-960.avif 960w, img/planning-1600.avif 1600w"
+                sizes="(max-width: 820px) 80vw, min(58vw, 760px)" />
+              <img
+                src="img/planning.jpg"
+                alt="Planning together"
+                width="1600"
+                height="1064"
+                loading="lazy"
+                decoding="async"
+            /></picture>
+          </button>
         </div>
       </section>
 
