@@ -713,9 +713,11 @@
           close = { Mon: 1020, Tue: 1020, Wed: 1020, Thu: 1020, Fri: 840 }[day];
         open = !!close && mins >= 480 && mins < close;
         label = open ? "Open now" : "Closed now";
+        /* the label says when we open next, so nobody thinks the office is closed for good */
         /* when we call back: this morning (before 8 on a weekday), tomorrow (Mon–Thu evening), else Monday */
         const wk = ["Mon", "Tue", "Wed", "Thu", "Fri"].indexOf(day);
         when = wk >= 0 && mins < 480 ? "this morning" : wk >= 0 && wk < 4 ? "tomorrow morning" : "on Monday morning";
+        if (!open) label += wk >= 0 && mins < 480 ? " · Opens today at 8am" : wk >= 0 && wk < 4 ? " · Opens tomorrow at 8am" : " · Opens Monday at 8am";
       } catch (e) {}
       if (!label) return void (f.hidden = true);
       ft.textContent = label;
@@ -732,12 +734,25 @@
       }
       if (fw) fw.textContent = when;
       if (cb) cb.hidden = !open;
+      const fb = $(".fab");
+      if (fb) fb.classList.toggle("closed", !open); // closed: no floating call button either, the form leads
     };
     check();
     setInterval(check, 60000);
   }
 
   /* ---- privacy policy popup ---- */
+  function initHours() {
+    const d = $("#hrs"),
+      o = $("#hrsOpen"),
+      c = $("#hrsClose");
+    if (!d || !o) return;
+    o.addEventListener("click", () => (d.showModal ? d.showModal() : d.setAttribute("open", "")));
+    c.addEventListener("click", () => d.close());
+    d.addEventListener("click", (e) => {
+      if (e.target === d) d.close(); // tap outside the card closes it
+    });
+  }
   function initPrivacy() {
     const pp = $("#pp");
     const open = (e) => {
@@ -1073,6 +1088,7 @@
   safe("lead", initLead);
   safe("privacy", initPrivacy);
   safe("open now", initOpenNow);
+  safe("hours", initHours);
   safe("hero", initHero);
   safe("film", initFilm);
   safe("gallery", initGallery);

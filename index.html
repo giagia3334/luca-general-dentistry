@@ -718,7 +718,7 @@
         <div class="glow"></div>
         <div class="in two rvs">
           <div class="up">
-            <span class="fnow" id="fnow" hidden><i></i><span id="fnow-t">Open now</span></span>
+            <div class="frow"><span class="fnow" id="fnow" hidden><i></i><span id="fnow-t">Open now</span></span><button type="button" class="hrsbtn" id="hrsOpen">Working hours</button></div>
             <h2>Ready when you are.</h2>
             <p class="lead" id="flead" style="margin-top: 14px">
               Send a request or call <a class="tel" href="tel:+13854122543" data-call="form_lead">(385) 412-2543</a>. We
@@ -824,6 +824,19 @@
         </p>
       </div>
     </footer>
+    <dialog class="hrs" id="hrs" aria-label="Working hours">
+      <div class="pphead"><b>Working hours</b><button type="button" id="hrsClose" aria-label="Close">×</button></div>
+      <ul class="hlist">
+        <li><span>Monday</span><b>8am – 5pm</b></li>
+        <li><span>Tuesday</span><b>8am – 5pm</b></li>
+        <li><span>Wednesday</span><b>8am – 5pm</b></li>
+        <li><span>Thursday</span><b>8am – 5pm</b></li>
+        <li><span>Friday</span><b>8am – 2pm</b></li>
+        <li><span>Saturday</span><b>Closed</b></li>
+        <li><span>Sunday</span><b>Closed</b></li>
+      </ul>
+      <p class="hnote">Mountain Time. Leave a request anytime and we'll call you back when we open.</p>
+    </dialog>
     <dialog class="pp" id="pp" aria-label="Privacy Policy">
       <div class="pphead"><b>Privacy Policy</b><button type="button" id="ppClose" aria-label="Close">×</button></div>
       <div class="ppbody">
