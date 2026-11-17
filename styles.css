@@ -1897,3 +1897,52 @@ dialog.pp:target:not([open]) {
     visibility: hidden;
   }
 }
+/* 17 Nov: "keep scrolling" arrow inside the pinned dots frame, so it never reads as the end of the page */
+.insta .cue {
+  position: absolute;
+  left: 50%;
+  bottom: calc(22px + env(safe-area-inset-bottom, 0px));
+  width: 40px;
+  height: 40px;
+  margin-left: -20px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 6px 18px #00000024;
+  opacity: var(--cue, 0);
+  pointer-events: none;
+}
+.insta .cue svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.m .insta .cue svg {
+  animation: cueNudge 1.6s ease-in-out infinite;
+}
+@keyframes cueNudge {
+  0%, 100% { transform: translateY(-2px); }
+  50% { transform: translateY(3px); }
+}
+.insta.static .cue {
+  display: none;
+}
+/* phones: a shorter pinned scroll, so the reviews arrive sooner */
+@media (max-width: 700px) {
+  .insta {
+    height: 170vh;
+  }
+}
+/* the form's call button shows only while the office is open */
+.fcall {
+  margin-top: 18px;
+}
+.fcall[hidden] {
+  display: none !important;
+}

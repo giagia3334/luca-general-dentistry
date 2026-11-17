@@ -567,6 +567,7 @@
         lead = innerHeight * 0.75,
         span = r.height - innerHeight + lead;
       const p = Math.min(1, Math.max(0, (lead - r.top) / span));
+      insta.style.setProperty("--cue", (1 - cl(p, 0.86, 0.94)).toFixed(3)); // "keep scrolling" arrow until the reviews arrive
       insta.style.setProperty("--rate", cl(p, 0.84, 0.95).toFixed(3)); // "4.9 from 479 Google reviews" arrives as the stars settle
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, PW, PH);
@@ -696,7 +697,8 @@
     if (!f || !ft || !window.Intl) return;
     const check = () => {
       let open = false,
-        label = "";
+        label = "",
+        when = "tomorrow morning";
       try {
         const parts = new Intl.DateTimeFormat("en-US", {
           timeZone: "America/Denver",
@@ -710,12 +712,26 @@
           mins = (+get("hour") % 24) * 60 + +get("minute"),
           close = { Mon: 1020, Tue: 1020, Wed: 1020, Thu: 1020, Fri: 840 }[day];
         open = !!close && mins >= 480 && mins < close;
-        label = open ? "Open now" : "Closed now · we call you back when we open";
+        label = open ? "Open now" : "Closed now";
+        /* when we call back: this morning (before 8 on a weekday), tomorrow (Mon–Thu evening), else Monday */
+        const wk = ["Mon", "Tue", "Wed", "Thu", "Fri"].indexOf(day);
+        when = wk >= 0 && mins < 480 ? "this morning" : wk >= 0 && wk < 4 ? "tomorrow morning" : "on Monday morning";
       } catch (e) {}
       if (!label) return void (f.hidden = true);
       ft.textContent = label;
       f.classList.toggle("closed", !open);
       f.hidden = false;
+      /* closed: lead with the form and a call-back promise; open: form and a call button */
+      const fl = $("#flead"),
+        fc = $("#fclosed"),
+        fw = $("#fwhen"),
+        cb = $("#fcall");
+      if (fl && fc) {
+        fl.hidden = !open;
+        fc.hidden = open;
+      }
+      if (fw) fw.textContent = when;
+      if (cb) cb.hidden = !open;
     };
     check();
     setInterval(check, 60000);
